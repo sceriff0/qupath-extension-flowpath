@@ -1,4 +1,4 @@
-# QuPath Extension: Gate Tree
+# QuPath Extension: FlowPath
 
 [![QuPath](https://img.shields.io/badge/QuPath-%E2%89%A50.7.0-blue.svg)](https://qupath.github.io/)
 [![Java](https://img.shields.io/badge/Java-25-orange.svg)](https://jdk.java.net/25/)
@@ -25,8 +25,8 @@ Designed to work with the [mirage](https://github.com/sceriff0/mirage) pipeline 
 ### From QuPath Extension Manager
 
 1. Open QuPath → `Extensions` → `Manage extensions` → `Manage extension catalogs` → `Add`
-2. Paste: `https://github.com/sceriff0/qupath-extension-gatetree`
-3. Go back to `Manage extensions` → find **Gate Tree** → click `+` to install
+2. Paste: `https://github.com/sceriff0/qupath-extension-flowpath`
+3. Go back to `Manage extensions` → find **FlowPath** → click `+` to install
 4. Restart QuPath
 
 ### From Release JAR
@@ -36,17 +36,17 @@ Download the latest JAR from [Releases](../../releases) and drag it onto QuPath.
 ### Build from Source
 
 ```bash
-git clone https://github.com/sceriff0/qupath-extension-gatetree.git
-cd qupath-extension-gatetree
+git clone https://github.com/sceriff0/qupath-extension-flowpath.git
+cd qupath-extension-flowpath
 ./gradlew build
-# JAR at build/libs/qupath-extension-gatetree-0.4.0.jar → drag onto QuPath
+# JAR at build/libs/FlowPath-0.4.1.jar → drag onto QuPath
 ```
 
 ## Quick Start
 
 1. Open your pyramidal OME-TIFF in QuPath
 2. Import cell detections (GeoJSON with marker intensities, e.g., from [mirage](https://github.com/sceriff0/mirage))
-3. `Extensions` > `Gate Tree` (or `Ctrl+G`)
+3. `Extensions` > `FlowPath` (or `Ctrl+G`)
 4. Set quality filters to remove segmentation artifacts
 5. Add root gate → select channel → drag threshold on histogram
 6. Build hierarchy: "Add Gate to +" for sub-gating positive populations
@@ -55,7 +55,7 @@ cd qupath-extension-gatetree
 
 ## Output Formats
 
-**Gate Tree JSON** (`gate_tree.json`) — Saves the full gate hierarchy, thresholds, colors, and quality filter settings. Load to reproduce gating.
+**FlowPath JSON** (`flowpath.json`) — Saves the full gate hierarchy, thresholds, colors, and quality filter settings. Load to reproduce gating.
 
 **Phenotype CSV** (`gate_pheno.csv`) — One row per cell with phenotype name and per-marker +/- status:
 
@@ -71,7 +71,7 @@ Excluded cells (QC-filtered or outlier-excluded) are omitted when "Exclude from 
 
 If you use this tool in your research, please cite:
 
-> Gate Tree: Interactive tree-based cell phenotyping gating for QuPath. (2025). https://github.com/sceriff0/qupath-extension-gatetree
+> FlowPath: Interactive tree-based cell phenotyping gating for QuPath. (2025). https://github.com/sceriff0/qupath-extension-flowpath
 
 ## License
 

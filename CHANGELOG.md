@@ -8,13 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [0.4.0] - 2025
 
 ### Added
-- Unit tests for QualityFilter, GateNode, GateTree, ColorUtils, and GateTreeSerializer
+- Unit tests for QualityFilter, GateNode, GateTree, ColorUtils, and FlowPathSerializer
 - CI workflow for automated build validation on push/PR
 - CHANGELOG.md
 
 ### Changed
-- Fixed `qupathExtension.name` to human-readable "Gate Tree"
-- Fixed `automaticModule` to match package namespace (`qupath.ext.gatetree`)
+- Fixed `qupathExtension.name` to human-readable "FlowPath"
+- Fixed `automaticModule` to match package namespace (`qupath.ext.flowpath`)
 
 ## [0.3.4] - 2025
 

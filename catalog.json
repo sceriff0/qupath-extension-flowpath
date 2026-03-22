@@ -1,16 +1,16 @@
 {
-  "name": "Gate Tree Extension Catalog",
+  "name": "FlowPath Extension Catalog",
   "description": "Interactive tree-based cell phenotyping gating for QuPath",
   "extensions": [
     {
-      "name": "Gate Tree",
+      "name": "FlowPath",
       "description": "Interactive tree-based cell phenotyping gating with hierarchical gates, live histogram visualization, quality filters, and CSV export. Designed for multiplexed imaging data.",
       "author": "Valer",
-      "homepage": "https://github.com/sceriff0/qupath-extension-gatetree",
+      "homepage": "https://github.com/sceriff0/qupath-extension-flowpath",
       "releases": [
         {
           "name": "v0.4.1",
-          "main_url": "https://github.com/sceriff0/qupath-extension-gatetree/releases/download/v0.4.1/Gate.Tree-0.4.1.jar",
+          "main_url": "https://github.com/sceriff0/qupath-extension-flowpath/releases/download/v0.4.1/FlowPath-0.4.1.jar",
           "version_range": {
             "min": "v0.7.0"
           }
