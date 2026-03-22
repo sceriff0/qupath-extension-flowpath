@@ -201,13 +201,15 @@ public class GateEditorPane extends VBox {
         // Wire name/color changes
         posNameField.textProperty().addListener((obs, old, val) -> {
             if (!suppressEvents && currentNode != null) {
-                currentNode.setPositiveName(val);
+                String name = (val == null || val.isBlank()) ? currentNode.getChannel() + "+" : val;
+                currentNode.setPositiveName(name);
                 fireNodeChanged();
             }
         });
         negNameField.textProperty().addListener((obs, old, val) -> {
             if (!suppressEvents && currentNode != null) {
-                currentNode.setNegativeName(val);
+                String name = (val == null || val.isBlank()) ? currentNode.getChannel() + "-" : val;
+                currentNode.setNegativeName(name);
                 fireNodeChanged();
             }
         });
