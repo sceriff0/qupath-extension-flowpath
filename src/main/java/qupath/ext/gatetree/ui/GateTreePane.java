@@ -476,7 +476,7 @@ public class GateTreePane extends BorderPane {
         try {
             GatingEngine.AssignmentResult result = GatingEngine.assignAll(
                 gateTree, cellIndex, markerStats, editorPane.isUseZScore());
-            PhenotypeCsvExporter.export(file, cellIndex, result, gateTree);
+            PhenotypeCsvExporter.export(file, cellIndex, result, gateTree, markerStats);
             Dialogs.showInfoNotification("Gate Tree", "Exported " + file.getName());
         } catch (Exception ex) {
             Dialogs.showErrorMessage("Export Error", ex.getMessage());

@@ -14,11 +14,11 @@ public class QualityFilter {
     }
 
     public boolean passes(double area, double eccentricity, double solidity, double totalIntensity) {
-        return area >= minArea
-                && area <= maxArea
-                && eccentricity <= maxEccentricity
-                && solidity >= minSolidity
-                && totalIntensity >= minTotalIntensity;
+        if (!Double.isNaN(area) && (area < minArea || area > maxArea)) return false;
+        if (!Double.isNaN(eccentricity) && eccentricity > maxEccentricity) return false;
+        if (!Double.isNaN(solidity) && solidity < minSolidity) return false;
+        if (!Double.isNaN(totalIntensity) && totalIntensity < minTotalIntensity) return false;
+        return true;
     }
 
     public double getMinArea() {

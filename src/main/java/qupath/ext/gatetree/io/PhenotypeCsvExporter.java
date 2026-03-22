@@ -4,6 +4,7 @@ import qupath.ext.gatetree.engine.GatingEngine;
 import qupath.ext.gatetree.model.CellIndex;
 import qupath.ext.gatetree.model.GateNode;
 import qupath.ext.gatetree.model.GateTree;
+import qupath.ext.gatetree.model.MarkerStats;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -19,10 +20,8 @@ import java.util.Set;
 /**
  * Exports cell phenotype assignments to a CSV file.
  * <p>
- * Each row represents a single cell. Columns include the cell identifier,
- * the assigned phenotype, and one column per marker channel indicating
- * whether the cell was classified as positive (+) or negative (-) for
- * that marker.
+ * Each row represents a single cell. Columns include identity, spatial coordinates,
+ * geometry measurements, and per-marker triplets (raw intensity, z-score, gating sign).
  */
 public class PhenotypeCsvExporter {
 
@@ -31,22 +30,22 @@ public class PhenotypeCsvExporter {
     }
 
     /**
-     * Export phenotype assignments to CSV.
+     * Export phenotype assignments to CSV with raw intensities, z-scores, and geometry.
      *
      * @param file   destination CSV file
      * @param index  the cell index containing objects and marker data
      * @param result the gating assignment result
      * @param tree   the gate tree used for the assignment
+     * @param stats  per-marker statistics for z-score computation (may be null)
      * @throws IOException if writing fails
      */
     public static void export(File file, CellIndex index, GatingEngine.AssignmentResult result,
-                              GateTree tree) throws IOException {
+                              GateTree tree, MarkerStats stats) throws IOException {
 
         // 1. Collect all unique marker channels in the gate tree (preserving order)
         List<String> markerColumns = collectMarkerChannels(tree);
 
         // 2. Build a lookup from phenotype name -> marker sign map
-        //    so we can determine +/- for each marker given a phenotype
         Map<String, Map<String, String>> phenotypeMarkerSigns = new LinkedHashMap<>();
         for (GateNode root : tree.getRoots()) {
             traceMarkerSigns(root, new LinkedHashMap<>(), phenotypeMarkerSigns);
@@ -58,10 +57,12 @@ public class PhenotypeCsvExporter {
 
         try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
             // Write header
-            writer.write("cell_id,phenotype,centroid_x,centroid_y,area");
+            writer.write("cell_id,phenotype,centroid_x,centroid_y,area,perimeter,eccentricity,solidity");
             for (String marker : markerColumns) {
-                writer.write(',');
-                writer.write(escapeCsv(marker));
+                String safe = escapeCsv(marker);
+                writer.write("," + safe + "_raw");
+                writer.write("," + safe + "_zscore");
+                writer.write("," + safe + "_sign");
             }
             writer.newLine();
 
@@ -74,28 +75,47 @@ public class PhenotypeCsvExporter {
 
                 String phenotype = phenotypes[i] != null ? phenotypes[i] : "";
 
+                // Identity
                 writer.write(String.valueOf(i));
                 writer.write(',');
                 writer.write(escapeCsv(phenotype));
-                writer.write(',');
-                writer.write(String.format("%.4f", index.getCentroidX(i)));
-                writer.write(',');
-                writer.write(String.format("%.4f", index.getCentroidY(i)));
-                writer.write(',');
-                writer.write(String.format("%.4f", index.getArea(i)));
 
-                // Look up marker signs for this phenotype
+                // Spatial + geometry (empty if NaN)
+                writer.write(',' + fmt(index.getCentroidX(i)));
+                writer.write(',' + fmt(index.getCentroidY(i)));
+                writer.write(',' + fmt(index.getArea(i)));
+                writer.write(',' + fmt(index.getPerimeter(i)));
+                writer.write(',' + fmt(index.getEccentricity(i)));
+                writer.write(',' + fmt(index.getSolidity(i)));
+
+                // Per marker: raw, zscore, sign
                 Map<String, String> signs = phenotypeMarkerSigns.get(phenotype);
 
                 for (String marker : markerColumns) {
-                    writer.write(',');
-                    if (signs != null && signs.containsKey(marker)) {
-                        writer.write(signs.get(marker));
+                    int mIdx = index.getMarkerIndex(marker);
+                    double raw = (mIdx >= 0) ? index.getMarkerValues(mIdx)[i] : Double.NaN;
+
+                    double zscore;
+                    if (Double.isNaN(raw) || stats == null || stats.getStd(marker) <= 1e-10) {
+                        zscore = Double.NaN;
+                    } else {
+                        zscore = stats.toZScore(marker, raw);
                     }
+
+                    String sign = (signs != null && signs.containsKey(marker)) ? signs.get(marker) : "";
+
+                    writer.write(',' + fmt(raw));
+                    writer.write(',' + fmt(zscore));
+                    writer.write(',' + sign);
                 }
                 writer.newLine();
             }
         }
+    }
+
+    /** Format a double for CSV; NaN → empty string. */
+    private static String fmt(double val) {
+        return Double.isNaN(val) ? "" : String.format("%.4f", val);
     }
 
     /**
@@ -126,10 +146,6 @@ public class PhenotypeCsvExporter {
      * Recursively trace all paths through the gate tree. At each leaf (a node
      * with no children on a given branch), record the accumulated marker signs
      * keyed by the leaf phenotype name.
-     *
-     * @param node         current gate node
-     * @param currentSigns accumulated marker -> "+" or "-" along the current path
-     * @param result       map from phenotype name to marker sign map
      */
     private static void traceMarkerSigns(GateNode node,
                                          Map<String, String> currentSigns,
@@ -139,7 +155,6 @@ public class PhenotypeCsvExporter {
         positivePath.put(node.getChannel(), "+");
 
         if (node.getPositiveChildren().isEmpty()) {
-            // This is a leaf on the positive side
             result.put(node.getPositiveName(), new LinkedHashMap<>(positivePath));
         } else {
             for (GateNode child : node.getPositiveChildren()) {
@@ -152,7 +167,6 @@ public class PhenotypeCsvExporter {
         negativePath.put(node.getChannel(), "-");
 
         if (node.getNegativeChildren().isEmpty()) {
-            // This is a leaf on the negative side
             result.put(node.getNegativeName(), new LinkedHashMap<>(negativePath));
         } else {
             for (GateNode child : node.getNegativeChildren()) {

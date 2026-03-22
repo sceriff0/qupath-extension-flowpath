@@ -12,6 +12,7 @@ public class CellIndex {
     private final String[] markerNames;
     private final double[][] values; // [markerIndex][cellIndex]
     private final double[] areas;
+    private final double[] perimeters;
     private final double[] eccentricities;
     private final double[] solidities;
     private final double[] totalIntensities;
@@ -20,12 +21,14 @@ public class CellIndex {
     private final int size;
 
     private CellIndex(PathObject[] objects, String[] markerNames, double[][] values,
-                      double[] areas, double[] eccentricities, double[] solidities,
-                      double[] totalIntensities, double[] centroidX, double[] centroidY) {
+                      double[] areas, double[] perimeters, double[] eccentricities,
+                      double[] solidities, double[] totalIntensities,
+                      double[] centroidX, double[] centroidY) {
         this.objects = objects;
         this.markerNames = markerNames;
         this.values = values;
         this.areas = areas;
+        this.perimeters = perimeters;
         this.eccentricities = eccentricities;
         this.solidities = solidities;
         this.totalIntensities = totalIntensities;
@@ -42,6 +45,7 @@ public class CellIndex {
         String[] markers = markerNames.toArray(new String[0]);
         double[][] values = new double[m][n];
         double[] areas = new double[n];
+        double[] perimeters = new double[n];
         double[] eccentricities = new double[n];
         double[] solidities = new double[n];
         double[] totalIntensities = new double[n];
@@ -55,14 +59,21 @@ public class CellIndex {
             double area = findMeasurement(measurements, "area");
             double convexArea = findMeasurement(measurements, "convex_area");
             double eccentricity = findMeasurement(measurements, "eccentricity");
+            double perimeter = findMeasurement(measurements, "perimeter");
 
             areas[i] = area;
+            perimeters[i] = perimeter;
             eccentricities[i] = eccentricity;
-            solidities[i] = (convexArea > 0) ? area / convexArea : 1.0;
+            // Solidity = area / convex_area; NaN if either is missing
+            if (!Double.isNaN(area) && !Double.isNaN(convexArea) && convexArea > 0) {
+                solidities[i] = area / convexArea;
+            } else {
+                solidities[i] = Double.NaN;
+            }
 
             // Spatial coordinates
-            centroidX[i] = findMeasurement(measurements, "Centroid X µm");
-            centroidY[i] = findMeasurement(measurements, "Centroid Y µm");
+            centroidX[i] = findMeasurement(measurements, "Centroid X");
+            centroidY[i] = findMeasurement(measurements, "Centroid Y");
 
             double totalIntensity = 0;
             for (int j = 0; j < m; j++) {
@@ -75,8 +86,8 @@ public class CellIndex {
             i++;
         }
 
-        return new CellIndex(objects, markers, values, areas, eccentricities, solidities,
-                totalIntensities, centroidX, centroidY);
+        return new CellIndex(objects, markers, values, areas, perimeters, eccentricities,
+                solidities, totalIntensities, centroidX, centroidY);
     }
 
     private static Map<String, Number> getMeasurements(PathObject obj) {
@@ -110,7 +121,8 @@ public class CellIndex {
 
     /**
      * Find a morphological measurement by key name.
-     * Tries exact match, then layer-prefixed pattern "[layer] key".
+     * Tries exact match, then layer-prefixed "[layer] key", then prefix match
+     * (e.g., "area" matches "area µm²"). Returns NaN if not found.
      */
     private static double findMeasurement(Map<String, Number> measurements, String key) {
         Number val = measurements.get(key);
@@ -131,7 +143,7 @@ public class CellIndex {
             }
         }
 
-        return 0.0;
+        return Double.NaN;
     }
 
     public double[] getMarkerValues(int markerIndex) {
@@ -162,6 +174,10 @@ public class CellIndex {
         return areas;
     }
 
+    public double[] getPerimeters() {
+        return perimeters;
+    }
+
     public double[] getEccentricities() {
         return eccentricities;
     }
@@ -184,6 +200,10 @@ public class CellIndex {
 
     public double getArea(int i) {
         return areas[i];
+    }
+
+    public double getPerimeter(int i) {
+        return perimeters[i];
     }
 
     public double getEccentricity(int i) {
