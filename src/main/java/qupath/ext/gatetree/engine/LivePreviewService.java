@@ -156,6 +156,23 @@ public class LivePreviewService {
 
         Map<String, PathClass> classCache = new HashMap<>();
 
+        // Build cache and force-update colors (PathClass.fromString caches globally by name,
+        // so we must explicitly set the color each time to reflect user changes)
+        Map<String, Integer> colorByName = new HashMap<>();
+        for (int i = 0; i < n; i++) {
+            if (!excluded[i] && phenotypes[i] != null) {
+                colorByName.put(phenotypes[i], colors[i]);
+            }
+        }
+        for (var entry : colorByName.entrySet()) {
+            int packed = entry.getValue();
+            int qupathColor = ColorTools.packRGB(
+                ColorTools.red(packed), ColorTools.green(packed), ColorTools.blue(packed));
+            PathClass pc = PathClass.fromString(entry.getKey(), qupathColor);
+            pc.setColor(qupathColor);  // Force-update cached PathClass color
+            classCache.put(entry.getKey(), pc);
+        }
+
         for (int i = 0; i < n; i++) {
             PathObject obj = index.getObject(i);
             if (obj == null) {
@@ -164,15 +181,7 @@ public class LivePreviewService {
             if (excluded[i]) {
                 obj.setPathClass(null);
             } else {
-                String name = phenotypes[i];
-                int packedColor = colors[i];
-                PathClass pc = classCache.computeIfAbsent(name, k -> {
-                    int r = ColorTools.red(packedColor);
-                    int g = ColorTools.green(packedColor);
-                    int b = ColorTools.blue(packedColor);
-                    return PathClass.fromString(k, ColorTools.packRGB(r, g, b));
-                });
-                obj.setPathClass(pc);
+                obj.setPathClass(classCache.get(phenotypes[i]));
             }
         }
 
