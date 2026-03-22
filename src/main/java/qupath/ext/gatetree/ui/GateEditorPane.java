@@ -61,20 +61,7 @@ public class GateEditorPane extends VBox {
         channelLabel.setStyle("-fx-text-fill: white;");
         channelCombo = new ComboBox<>();
         channelCombo.setPrefWidth(200);
-        channelCombo.setOnAction(e -> {
-            if (!suppressEvents && currentNode != null) {
-                currentNode.setChannel(channelCombo.getValue());
-                String ch = channelCombo.getValue();
-                if (ch != null) {
-                    posNameField.setText(ch + "+");
-                    negNameField.setText(ch + "-");
-                    currentNode.setPositiveName(ch + "+");
-                    currentNode.setNegativeName(ch + "-");
-                }
-                updateHistogram();
-                fireNodeChanged();
-            }
-        });
+        // Action listener wired after all fields are initialized (see bottom of constructor)
 
         HBox channelRow = new HBox(8, channelLabel, channelCombo);
 
@@ -98,14 +85,7 @@ public class GateEditorPane extends VBox {
 
         // Histogram
         histogram = new HistogramCanvas();
-        histogram.setOnThresholdChanged(val -> {
-            if (!suppressEvents && currentNode != null) {
-                currentNode.setThreshold(val);
-                thresholdSlider.setValue(val);
-                thresholdValueLabel.setText(String.format("%.4f", val));
-                fireNodeChanged();
-            }
-        });
+        // Threshold callback wired after all fields are initialized (see bottom of constructor)
         hoverLabel = new Label(" ");
         hoverLabel.setStyle("-fx-text-fill: #aaaaaa; -fx-font-size: 9;");
         histogram.setOnMouseHover(val -> hoverLabel.setText(String.format("Value: %.4f", val)));
@@ -244,6 +224,30 @@ public class GateEditorPane extends VBox {
             new Separator(),
             buttonRow
         );
+
+        // Wire deferred callbacks (after all fields are initialized)
+        channelCombo.setOnAction(e -> {
+            if (!suppressEvents && currentNode != null) {
+                currentNode.setChannel(channelCombo.getValue());
+                String ch = channelCombo.getValue();
+                if (ch != null) {
+                    posNameField.setText(ch + "+");
+                    negNameField.setText(ch + "-");
+                    currentNode.setPositiveName(ch + "+");
+                    currentNode.setNegativeName(ch + "-");
+                }
+                updateHistogram();
+                fireNodeChanged();
+            }
+        });
+        histogram.setOnThresholdChanged(val -> {
+            if (!suppressEvents && currentNode != null) {
+                currentNode.setThreshold(val);
+                thresholdSlider.setValue(val);
+                thresholdValueLabel.setText(String.format("%.4f", val));
+                fireNodeChanged();
+            }
+        });
 
         setDisabled(true);
     }

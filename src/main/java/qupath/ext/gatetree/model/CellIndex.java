@@ -69,23 +69,13 @@ public class CellIndex {
         return new CellIndex(objects, markers, values, areas, eccentricities, solidities, totalIntensities);
     }
 
-    @SuppressWarnings("unchecked")
     private static Map<String, Number> getMeasurements(PathObject obj) {
         try {
-            return (Map<String, Number>) obj.getMeasurements();
-        } catch (Exception e) {
-            // Fallback: getMeasurementList() for older QuPath versions
-            try {
-                var ml = obj.getMeasurementList();
-                Map<String, Number> map = new java.util.LinkedHashMap<>();
-                for (int k = 0; k < ml.size(); k++) {
-                    map.put(ml.getMeasurementName(k), ml.getMeasurementValue(k));
-                }
-                return map;
-            } catch (Exception e2) {
-                return Map.of();
-            }
+            var m = obj.getMeasurements();
+            if (m != null) return m;
+        } catch (Exception ignored) {
         }
+        return Map.of();
     }
 
     private static double findMeasurement(Map<String, Number> measurements, String key) {
