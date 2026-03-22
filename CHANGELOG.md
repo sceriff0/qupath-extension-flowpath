@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [0.4.0] - 2025
+## [0.4.0] - 22/03/2026
 
 ### Added
 - Unit tests for QualityFilter, GateNode, GateTree, ColorUtils, and FlowPathSerializer
@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Fixed `qupathExtension.name` to human-readable "FlowPath"
 - Fixed `automaticModule` to match package namespace (`qupath.ext.flowpath`)
 
-## [0.3.4] - 2025
+## [0.3.4] - 22/03/2026
 
 ### Fixed
 - Empty gate names now default gracefully instead of throwing errors
@@ -26,7 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Changed
 - Improved code maintainability and safety
 
-## [0.2.0] - 2025
+## [0.2.0] - 22/03/2026
 
 ### Added
 - Quality filter pane (area, eccentricity, solidity, total intensity)
@@ -41,7 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Changed
 - UI polish and transparency improvements
 
-## [0.1.0] - 2025
+## [0.1.0] - 22/03/2025
 
 ### Added
 - Initial release
