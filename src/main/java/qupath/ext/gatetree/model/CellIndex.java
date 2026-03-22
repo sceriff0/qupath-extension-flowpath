@@ -56,8 +56,7 @@ public class CellIndex {
 
             double totalIntensity = 0;
             for (int j = 0; j < m; j++) {
-                Number val = measurements.get(markers[j]);
-                double v = (val != null) ? val.doubleValue() : 0.0;
+                double v = findMarkerValue(measurements, markers[j]);
                 values[j][i] = v;
                 totalIntensity += v;
             }
@@ -78,11 +77,41 @@ public class CellIndex {
         return Map.of();
     }
 
+    /**
+     * Find a marker intensity value by channel name.
+     * Tries exact match first, then looks for "[layer] channel" patterns
+     * (from import_phenotype.groovy layer-prefixed measurements).
+     */
+    private static double findMarkerValue(Map<String, Number> measurements, String channel) {
+        // Exact match
+        Number val = measurements.get(channel);
+        if (val != null) return val.doubleValue();
+
+        // Layer-prefixed match: "[something] channel"
+        String suffix = "] " + channel;
+        for (Map.Entry<String, Number> entry : measurements.entrySet()) {
+            if (entry.getKey().endsWith(suffix) && entry.getValue() != null) {
+                return entry.getValue().doubleValue();
+            }
+        }
+        return 0.0;
+    }
+
+    /**
+     * Find a morphological measurement by key name.
+     * Uses case-insensitive partial matching for flexibility.
+     */
     private static double findMeasurement(Map<String, Number> measurements, String key) {
-        // Try exact match first
         Number val = measurements.get(key);
-        if (val != null)
-            return val.doubleValue();
+        if (val != null) return val.doubleValue();
+
+        // Layer-prefixed match
+        String suffix = "] " + key;
+        for (Map.Entry<String, Number> entry : measurements.entrySet()) {
+            if (entry.getKey().endsWith(suffix) && entry.getValue() != null) {
+                return entry.getValue().doubleValue();
+            }
+        }
 
         // Case-insensitive partial match
         String keyLower = key.toLowerCase();

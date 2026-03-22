@@ -192,6 +192,16 @@ public class QualityFilterPane extends TitledPane {
         suppressEvents = false;
     }
 
+    /**
+     * Enable/disable QC metric sliders based on data availability.
+     */
+    public void setAvailableMetrics(boolean hasEccentricity, boolean hasSolidity) {
+        eccentricitySlider.setDisable(!hasEccentricity);
+        soliditySlider.setDisable(!hasSolidity);
+        eccentLabel.setText(hasEccentricity ? fmt(filter.getMaxEccentricity()) : "\u2014");
+        solidLabel.setText(hasSolidity ? fmt(filter.getMinSolidity()) : "\u2014");
+    }
+
     public void setFilteredCount(int filtered, int total) {
         filteredCountLabel.setText(String.format("Filtered: %,d / %,d cells", filtered, total));
     }

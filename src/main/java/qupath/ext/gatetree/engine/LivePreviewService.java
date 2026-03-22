@@ -64,6 +64,10 @@ public class LivePreviewService {
         this.markerStats = stats;
     }
 
+    public MarkerStats getMarkerStats() {
+        return this.markerStats;
+    }
+
     public void setUseZScore(boolean useZScore) {
         this.useZScore = useZScore;
     }

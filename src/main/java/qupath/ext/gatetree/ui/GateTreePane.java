@@ -124,8 +124,8 @@ public class GateTreePane extends BorderPane {
             return;
         }
 
-        // Discover marker names from first detection's measurements
-        markerNames = discoverMarkerNames(detections);
+        // Discover marker names from image channels (OME-TIFF metadata)
+        markerNames = discoverMarkerNames(imageData, detections);
 
         cellIndex = CellIndex.build(detections, markerNames);
 
@@ -138,13 +138,17 @@ public class GateTreePane extends BorderPane {
         editorPane.setCellIndex(cellIndex);
         editorPane.setMarkerStats(markerStats);
 
-        // Update quality filter ranges
+        // Update quality filter ranges + check which QC metrics have data
         double maxArea = 0, maxTotalInt = 0;
+        boolean hasEccentricity = false, hasSolidity = false;
         for (int i = 0; i < cellIndex.size(); i++) {
             maxArea = Math.max(maxArea, cellIndex.getArea(i));
             maxTotalInt = Math.max(maxTotalInt, cellIndex.getTotalIntensity(i));
+            if (cellIndex.getEccentricity(i) > 0) hasEccentricity = true;
+            if (cellIndex.getSolidity(i) > 0 && cellIndex.getSolidity(i) < 1.0) hasSolidity = true;
         }
         qualityFilterPane.updateRanges(maxArea, maxTotalInt);
+        qualityFilterPane.setAvailableMetrics(hasEccentricity, hasSolidity);
         updateFilteredCount();
 
         // Setup preview service
@@ -154,13 +158,37 @@ public class GateTreePane extends BorderPane {
         previewService.setImageData(imageData);
         previewService.setUseZScore(editorPane.isUseZScore());
         previewService.setOnUpdateComplete(this::onPreviewUpdated);
+        previewService.setOnStatsRecomputed(() -> {
+            editorPane.setMarkerStats(previewService.getMarkerStats());
+            updateFilteredCount();
+        });
     }
 
     /**
-     * Discover marker names from detection measurements.
-     * Excludes morphological measurements and coordinate fields.
+     * Discover marker names from the image's channel metadata.
+     * Falls back to detection measurements if no image channels are found.
      */
-    private List<String> discoverMarkerNames(Collection<PathObject> detections) {
+    private List<String> discoverMarkerNames(ImageData<?> imageData, Collection<PathObject> detections) {
+        PathObject sample = detections.iterator().next();
+        var measurements = sample.getMeasurements();
+        Set<String> measurementKeys = (measurements != null) ? measurements.keySet() : Set.of();
+
+        // Primary: get channel names from image metadata, validate against measurements
+        var server = imageData.getServer();
+        var channels = server.getMetadata().getChannels();
+        if (channels != null && !channels.isEmpty()) {
+            List<String> validated = new ArrayList<>();
+            for (var ch : channels) {
+                String name = ch.getName();
+                if (name == null || name.isEmpty()) continue;
+                if (hasMeasurement(measurementKeys, name)) {
+                    validated.add(name);
+                }
+            }
+            if (!validated.isEmpty()) return validated;
+        }
+
+        // Fallback: extract from detection measurements (minus morphology fields)
         Set<String> exclude = Set.of(
             "Centroid X µm", "Centroid Y µm",
             "area µm²", "eccentricity", "perimeter", "convex_area",
@@ -168,18 +196,23 @@ public class GateTreePane extends BorderPane {
             "x", "y", "label", "fov", "cell_size"
         );
 
-        PathObject sample = detections.iterator().next();
-        var measurements = sample.getMeasurements();
-        if (measurements == null || measurements.isEmpty()) {
-            return Collections.emptyList();
-        }
+        if (measurementKeys.isEmpty()) return Collections.emptyList();
 
-        return measurements.keySet().stream()
+        return measurementKeys.stream()
             .filter(name -> !exclude.contains(name))
-            .filter(name -> !name.startsWith("["))  // Skip layer metadata
+            .filter(name -> !name.startsWith("["))
             .filter(name -> !name.startsWith("_"))
             .sorted()
             .collect(Collectors.toList());
+    }
+
+    private boolean hasMeasurement(Set<String> keys, String channel) {
+        if (keys.contains(channel)) return true;
+        String suffix = "] " + channel;
+        for (String key : keys) {
+            if (key.endsWith(suffix)) return true;
+        }
+        return false;
     }
 
     // --- Tree building ---
@@ -328,15 +361,9 @@ public class GateTreePane extends BorderPane {
 
     private void onQualityFilterChanged() {
         if (cellIndex == null) return;
-
-        // Recompute stats with new quality mask
-        boolean[] qualityMask = GatingEngine.computeQualityMask(cellIndex, gateTree.getQualityFilter());
-        markerStats = MarkerStats.compute(cellIndex, qualityMask);
-        editorPane.setMarkerStats(markerStats);
-        previewService.setMarkerStats(markerStats);
-
+        // Recompute stats on background thread, then trigger preview update
+        previewService.recomputeStats();
         updateFilteredCount();
-        requestPreviewUpdate();
     }
 
     private void updateFilteredCount() {
