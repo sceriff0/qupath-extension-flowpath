@@ -17,4 +17,9 @@ dependencies {
     shadow(libs.qupath.fxtras)
     testImplementation(libs.bundles.qupath)
     testImplementation(libs.junit)
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+}
+
+tasks.test {
+    useJUnitPlatform()
 }
