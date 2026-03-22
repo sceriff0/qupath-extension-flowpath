@@ -104,7 +104,7 @@ public class LivePreviewService {
      * a gating update.
      */
     public void recomputeStats() {
-        if (cellIndex == null || gateTree == null) {
+        if (cellIndex == null || gateTree == null || executor.isShutdown()) {
             return;
         }
         executor.submit(() -> {
@@ -124,12 +124,13 @@ public class LivePreviewService {
      */
     public void shutdown() {
         debounce.stop();
-        executor.shutdownNow();
+        executor.shutdown();
     }
 
     // ---- internal ----
 
     private void submitGatingWork() {
+        if (executor.isShutdown()) return;
         // Capture references to avoid races
         final GateTree tree = this.gateTree;
         final CellIndex index = this.cellIndex;
