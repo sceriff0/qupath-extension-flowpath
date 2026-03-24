@@ -74,25 +74,12 @@ public class PolygonGate extends GateNode {
         PolygonGate copy = new PolygonGate();
         copy.channelX = this.channelX;
         copy.channelY = this.channelY;
-        copy.setClipPercentileLow(this.getClipPercentileLow());
-        copy.setClipPercentileHigh(this.getClipPercentileHigh());
-        copy.setExcludeOutliers(this.isExcludeOutliers());
         copy.vertices = new ArrayList<>();
         for (double[] v : this.vertices) {
             copy.vertices.add(new double[]{v[0], v[1]});
         }
-        copy.insideBranch.setName(this.insideBranch.getName());
-        copy.insideBranch.setColor(this.insideBranch.getColor());
-        copy.insideBranch.setChildren(new ArrayList<>());
-        for (GateNode child : this.insideBranch.getChildren()) {
-            copy.insideBranch.getChildren().add(child.deepCopy());
-        }
-        copy.outsideBranch.setName(this.outsideBranch.getName());
-        copy.outsideBranch.setColor(this.outsideBranch.getColor());
-        copy.outsideBranch.setChildren(new ArrayList<>());
-        for (GateNode child : this.outsideBranch.getChildren()) {
-            copy.outsideBranch.getChildren().add(child.deepCopy());
-        }
+        copySharedFieldsTo(copy);
+        copyBranchesTo(copy);
         return copy;
     }
 }

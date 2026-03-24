@@ -73,17 +73,8 @@ public class RectangleGate extends GateNode {
         copy.channelY = this.channelY;
         copy.minX = this.minX; copy.maxX = this.maxX;
         copy.minY = this.minY; copy.maxY = this.maxY;
-        copy.setClipPercentileLow(this.getClipPercentileLow());
-        copy.setClipPercentileHigh(this.getClipPercentileHigh());
-        copy.setExcludeOutliers(this.isExcludeOutliers());
-        copy.insideBranch.setName(this.insideBranch.getName());
-        copy.insideBranch.setColor(this.insideBranch.getColor());
-        copy.insideBranch.setChildren(new ArrayList<>());
-        for (GateNode child : this.insideBranch.getChildren()) copy.insideBranch.getChildren().add(child.deepCopy());
-        copy.outsideBranch.setName(this.outsideBranch.getName());
-        copy.outsideBranch.setColor(this.outsideBranch.getColor());
-        copy.outsideBranch.setChildren(new ArrayList<>());
-        for (GateNode child : this.outsideBranch.getChildren()) copy.outsideBranch.getChildren().add(child.deepCopy());
+        copySharedFieldsTo(copy);
+        copyBranchesTo(copy);
         return copy;
     }
 }

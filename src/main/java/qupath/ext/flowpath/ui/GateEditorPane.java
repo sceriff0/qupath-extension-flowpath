@@ -1,27 +1,45 @@
 package qupath.ext.flowpath.ui;
 
 import javafx.geometry.Insets;
+import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
+import qupath.ext.flowpath.model.BooleanGate;
+import qupath.ext.flowpath.model.Branch;
 import qupath.ext.flowpath.model.CellIndex;
 import qupath.ext.flowpath.model.ColorUtils;
+import qupath.ext.flowpath.model.EllipseGate;
 import qupath.ext.flowpath.model.GateNode;
 import qupath.ext.flowpath.model.MarkerStats;
+import qupath.ext.flowpath.model.PolygonGate;
+import qupath.ext.flowpath.model.QuadrantGate;
+import qupath.ext.flowpath.model.RectangleGate;
 
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.function.IntConsumer;
 
 /**
  * Right-side editor panel for configuring a single gate node.
- * Shows channel selector, value mode toggle, histogram, threshold slider,
- * positive/negative naming and colors, clip percentiles, and action buttons.
+ * Swaps controls based on gate type: threshold shows histogram + slider,
+ * quadrant shows 2-channel controls, boolean shows operation picker, etc.
  */
 public class GateEditorPane extends VBox {
 
+    // --- Shared controls ---
+    private final Label gateTypeLabel;
+    private final Spinner<Double> clipLowSpinner;
+    private final Spinner<Double> clipHighSpinner;
+    private final CheckBox excludeOutliersBox;
+    private final VBox gateSpecificArea;
+    private final VBox branchNamesArea;
+    private final VBox actionButtonArea;
+
+    // --- Threshold-specific controls (lazily shown) ---
     private final ComboBox<String> channelCombo;
     private final ToggleGroup modeGroup;
     private final RadioButton rawModeBtn;
@@ -30,18 +48,7 @@ public class GateEditorPane extends VBox {
     private final Slider thresholdSlider;
     private final TextField thresholdValueField;
     private final Label populationCountsLabel;
-    private final TextField posNameField;
-    private final TextField negNameField;
-    private final ColorPicker posColorPicker;
-    private final ColorPicker negColorPicker;
-    private final Spinner<Double> clipLowSpinner;
-    private final Spinner<Double> clipHighSpinner;
-    private final CheckBox excludeOutliersBox;
     private final Label hoverLabel;
-
-    private final Button addToPosBtn;
-    private final Button addToNegBtn;
-    private final Button removeGateBtn;
 
     private GateNode currentNode;
     private CellIndex cellIndex;
@@ -51,6 +58,7 @@ public class GateEditorPane extends VBox {
     private Consumer<GateNode> onNodeChanged;
     private Runnable onAddToPositive;
     private Runnable onAddToNegative;
+    private IntConsumer onAddToBranch;
     private Runnable onRemoveGate;
 
     public GateEditorPane() {
@@ -58,17 +66,15 @@ public class GateEditorPane extends VBox {
         setPadding(new Insets(10));
         setStyle("-fx-background-color: #2a2a2a;");
 
-        // Channel selector
-        Label channelLabel = new Label("Channel:");
-        channelLabel.setStyle("-fx-text-fill: white;");
+        // Gate type indicator
+        gateTypeLabel = new Label("No gate selected");
+        gateTypeLabel.setStyle("-fx-text-fill: #80b0d0; -fx-font-size: 11; -fx-font-weight: bold;");
+
+        // --- Threshold-specific controls (always created, shown/hidden as needed) ---
         channelCombo = new ComboBox<>();
         channelCombo.setPrefWidth(200);
         channelCombo.setTooltip(new Tooltip("Select the marker channel for this gate"));
-        // Action listener wired after all fields are initialized (see bottom of constructor)
 
-        HBox channelRow = new HBox(8, channelLabel, channelCombo);
-
-        // Value mode toggle
         modeGroup = new ToggleGroup();
         rawModeBtn = new RadioButton("Raw");
         rawModeBtn.setToggleGroup(modeGroup);
@@ -86,22 +92,12 @@ public class GateEditorPane extends VBox {
                 fireNodeChanged();
             }
         });
-        HBox modeRow = new HBox(12, new Label("Mode:") {{ setStyle("-fx-text-fill: white;"); }}, rawModeBtn, zscoreModeBtn);
 
-        // Histogram section header
-        Label histogramHeader = createSectionHeader("Histogram");
-
-        // Histogram
         histogram = new HistogramCanvas();
-        // Threshold callback wired after all fields are initialized (see bottom of constructor)
         hoverLabel = new Label(" ");
         hoverLabel.setStyle("-fx-text-fill: #aaaaaa; -fx-font-size: 9;");
         histogram.setOnMouseHover(val -> hoverLabel.setText(String.format("Value: %.4f", val)));
 
-        // Threshold section header
-        Label thresholdHeader = createSectionHeader("Threshold");
-
-        // Threshold slider
         thresholdSlider = new Slider(-5, 5, 0);
         thresholdSlider.setPrefWidth(300);
         thresholdSlider.setBlockIncrement(0.01);
@@ -117,25 +113,15 @@ public class GateEditorPane extends VBox {
                 updatePopulationCounts();
             }
         });
-        // Allow typing exact threshold values
         thresholdValueField.setOnAction(e -> applyThresholdFromField());
         thresholdValueField.focusedProperty().addListener((obs, old, focused) -> {
             if (!focused) applyThresholdFromField();
         });
 
-        HBox threshRow = new HBox(8,
-            new Label("Threshold:") {{ setStyle("-fx-text-fill: white;"); }},
-            thresholdSlider, thresholdValueField);
-        HBox.setHgrow(thresholdSlider, Priority.ALWAYS);
-
-        // Population counts label
         populationCountsLabel = new Label("Positive: -- | Negative: --");
         populationCountsLabel.setStyle("-fx-text-fill: #aaaaaa; -fx-font-size: 10;");
 
-        // Outlier Clipping section header
-        Label clipHeader = createSectionHeader("Outlier Clipping");
-
-        // Clip percentiles
+        // --- Shared: Outlier Clipping ---
         clipLowSpinner = new Spinner<>(0.0, 50.0, 1.0, 0.5);
         clipLowSpinner.setPrefWidth(75);
         clipLowSpinner.setEditable(true);
@@ -151,10 +137,7 @@ public class GateEditorPane extends VBox {
         clipLowSpinner.valueProperty().addListener((obs, old, val) -> {
             if (!suppressEvents && currentNode != null) {
                 double clamped = Math.min(val, clipHighSpinner.getValue() - 0.5);
-                if (clamped != val) {
-                    clipLowSpinner.getValueFactory().setValue(clamped);
-                    return;
-                }
+                if (clamped != val) { clipLowSpinner.getValueFactory().setValue(clamped); return; }
                 currentNode.setClipPercentileLow(val);
                 updateHistogram();
                 fireNodeChanged();
@@ -163,10 +146,7 @@ public class GateEditorPane extends VBox {
         clipHighSpinner.valueProperty().addListener((obs, old, val) -> {
             if (!suppressEvents && currentNode != null) {
                 double clamped = Math.max(val, clipLowSpinner.getValue() + 0.5);
-                if (clamped != val) {
-                    clipHighSpinner.getValueFactory().setValue(clamped);
-                    return;
-                }
+                if (clamped != val) { clipHighSpinner.getValueFactory().setValue(clamped); return; }
                 currentNode.setClipPercentileHigh(val);
                 updateHistogram();
                 fireNodeChanged();
@@ -185,104 +165,19 @@ public class GateEditorPane extends VBox {
             clipHighSpinner, new Label("%") {{ setStyle("-fx-text-fill: white;"); }},
             excludeOutliersBox);
 
-        // Population Names section header
-        Label namesHeader = createSectionHeader("Population Names");
+        // Swappable areas
+        gateSpecificArea = new VBox(4);
+        branchNamesArea = new VBox(4);
+        actionButtonArea = new VBox(4);
 
-        // Positive / Negative names and colors
-        GridPane namesGrid = new GridPane();
-        namesGrid.setHgap(6);
-        namesGrid.setVgap(4);
-
-        Label posLabel = new Label("Positive:");
-        posLabel.setStyle("-fx-text-fill: #00cc00;");
-        posNameField = new TextField("Pos");
-        posNameField.setPrefWidth(120);
-        posColorPicker = new ColorPicker(Color.rgb(0, 200, 0));
-        posColorPicker.setPrefWidth(80);
-
-        Label negLabel = new Label("Negative:");
-        negLabel.setStyle("-fx-text-fill: #999999;");
-        negNameField = new TextField("Neg");
-        negNameField.setPrefWidth(120);
-        negColorPicker = new ColorPicker(Color.rgb(160, 160, 160));
-        negColorPicker.setPrefWidth(80);
-
-        namesGrid.add(posLabel, 0, 0);
-        namesGrid.add(posNameField, 1, 0);
-        namesGrid.add(posColorPicker, 2, 0);
-        namesGrid.add(negLabel, 0, 1);
-        namesGrid.add(negNameField, 1, 1);
-        namesGrid.add(negColorPicker, 2, 1);
-
-        // Wire name/color changes
-        posNameField.textProperty().addListener((obs, old, val) -> {
-            if (!suppressEvents && currentNode != null) {
-                String name = (val == null || val.isBlank()) ? currentNode.getChannel() + "+" : val;
-                currentNode.setPositiveName(name);
-                fireNodeChanged();
-            }
-        });
-        negNameField.textProperty().addListener((obs, old, val) -> {
-            if (!suppressEvents && currentNode != null) {
-                String name = (val == null || val.isBlank()) ? currentNode.getChannel() + "-" : val;
-                currentNode.setNegativeName(name);
-                fireNodeChanged();
-            }
-        });
-        posColorPicker.valueProperty().addListener((obs, old, val) -> {
-            if (!suppressEvents && currentNode != null) {
-                currentNode.setPositiveColor(ColorUtils.colorToInt(val));
-                histogram.setPosColor(val);
-                fireNodeChanged();
-            }
-        });
-        negColorPicker.valueProperty().addListener((obs, old, val) -> {
-            if (!suppressEvents && currentNode != null) {
-                currentNode.setNegativeColor(ColorUtils.colorToInt(val));
-                histogram.setNegColor(val);
-                fireNodeChanged();
-            }
-        });
-
-        // Action buttons
-        addToPosBtn = new Button("Add Gate to +");
-        addToPosBtn.setStyle("-fx-base: #004400;");
-        addToPosBtn.setTooltip(new Tooltip("Add a child gate to the positive branch"));
-        addToNegBtn = new Button("Add Gate to -");
-        addToNegBtn.setStyle("-fx-base: #444444;");
-        addToNegBtn.setTooltip(new Tooltip("Add a child gate to the negative branch"));
-        removeGateBtn = new Button("Remove Gate");
-        removeGateBtn.setStyle("-fx-base: #440000;");
-        removeGateBtn.setTooltip(new Tooltip("Remove this gate and all its children (Del)"));
-
-        addToPosBtn.setOnAction(e -> { if (onAddToPositive != null) onAddToPositive.run(); });
-        addToNegBtn.setOnAction(e -> { if (onAddToNegative != null) onAddToNegative.run(); });
-        removeGateBtn.setOnAction(e -> { if (onRemoveGate != null) onRemoveGate.run(); });
-
-        HBox buttonRow = new HBox(8, addToPosBtn, addToNegBtn, removeGateBtn);
-
-        // Assemble
-        getChildren().addAll(
-            channelRow, modeRow,
-            histogramHeader, histogram, hoverLabel,
-            thresholdHeader, threshRow, populationCountsLabel,
-            clipHeader, clipRow,
-            new Separator(),
-            namesHeader, namesGrid,
-            new Separator(),
-            buttonRow
-        );
-
-        // Wire deferred callbacks (after all fields are initialized)
+        // Wire deferred callbacks
         channelCombo.setOnAction(e -> {
             if (!suppressEvents && currentNode != null) {
                 currentNode.setChannel(channelCombo.getValue());
                 String ch = channelCombo.getValue();
-                if (ch != null) {
-                    posNameField.setText(ch + "+");
-                    negNameField.setText(ch + "-");
-                    currentNode.setPositiveName(ch + "+");
-                    currentNode.setNegativeName(ch + "-");
+                if (ch != null && currentNode.getBranches().size() >= 2) {
+                    currentNode.getBranches().get(0).setName(ch + "+");
+                    currentNode.getBranches().get(1).setName(ch + "-");
                 }
                 updateHistogram();
                 fireNodeChanged();
@@ -298,79 +193,326 @@ public class GateEditorPane extends VBox {
             }
         });
 
+        // Assemble
+        getChildren().addAll(
+            gateTypeLabel,
+            gateSpecificArea,
+            createSectionHeader("Outlier Clipping"), clipRow,
+            new Separator(),
+            branchNamesArea,
+            new Separator(),
+            actionButtonArea
+        );
+
         setDisabled(true);
     }
 
     /**
      * Populate the editor with a gate node's current values.
+     * Rebuilds the gate-specific UI section based on gate type.
      */
     public void setGateNode(GateNode node) {
         this.currentNode = node;
         if (node == null) {
             withSuppressedEvents(() -> setDisabled(true));
+            gateTypeLabel.setText("No gate selected");
+            gateSpecificArea.getChildren().clear();
+            branchNamesArea.getChildren().clear();
+            actionButtonArea.getChildren().clear();
             return;
         }
         withSuppressedEvents(() -> {
             setDisabled(false);
-            channelCombo.setValue(node.getChannel());
-            if (node.isThresholdIsZScore()) {
-                zscoreModeBtn.setSelected(true);
-            } else {
-                rawModeBtn.setSelected(true);
-            }
-            thresholdSlider.setValue(node.getThreshold());
-            thresholdValueField.setText(String.format("%.4f", node.getThreshold()));
-            posNameField.setText(node.getPositiveName());
-            negNameField.setText(node.getNegativeName());
-            posColorPicker.setValue(ColorUtils.intToColor(node.getPositiveColor()));
-            negColorPicker.setValue(ColorUtils.intToColor(node.getNegativeColor()));
+
+            // Shared controls
             clipLowSpinner.getValueFactory().setValue(node.getClipPercentileLow());
             clipHighSpinner.getValueFactory().setValue(node.getClipPercentileHigh());
             excludeOutliersBox.setSelected(node.isExcludeOutliers());
-            histogram.setPosColor(ColorUtils.intToColor(node.getPositiveColor()));
-            histogram.setNegColor(ColorUtils.intToColor(node.getNegativeColor()));
+
+            // Gate type label
+            String typeDisplay = switch (node.getGateType()) {
+                case "threshold" -> "Threshold Gate";
+                case "quadrant" -> "Quadrant Gate";
+                case "boolean" -> "Boolean Gate";
+                case "polygon" -> "Polygon Gate";
+                case "rectangle" -> "Rectangle Gate";
+                case "ellipse" -> "Ellipse Gate";
+                default -> "Gate";
+            };
+            gateTypeLabel.setText(typeDisplay);
+
+            // Rebuild gate-specific area
+            gateSpecificArea.getChildren().clear();
+            if (node instanceof QuadrantGate qg) {
+                buildQuadrantEditor(qg);
+            } else if (node instanceof BooleanGate bg) {
+                buildBooleanEditor(bg);
+            } else if (node instanceof PolygonGate || node instanceof RectangleGate || node instanceof EllipseGate) {
+                build2DEditor(node);
+            } else {
+                buildThresholdEditor(node);
+            }
+
+            // Rebuild branch names/colors
+            buildBranchNamesEditor(node);
+
+            // Rebuild action buttons
+            buildActionButtons(node);
         });
-        updateHistogram();
+
+        if (!(node instanceof BooleanGate)) {
+            updateHistogram();
+        }
     }
 
-    public void setChannelNames(List<String> names) {
-        channelCombo.getItems().setAll(names);
+    // ---- Gate-type-specific editor builders ----
+
+    private void buildThresholdEditor(GateNode node) {
+        Label chLabel = new Label("Channel:");
+        chLabel.setStyle("-fx-text-fill: white;");
+        HBox channelRow = new HBox(8, chLabel, channelCombo);
+        channelCombo.setValue(node.getChannel());
+
+        HBox modeRow = new HBox(12, new Label("Mode:") {{ setStyle("-fx-text-fill: white;"); }}, rawModeBtn, zscoreModeBtn);
+        if (node.isThresholdIsZScore()) zscoreModeBtn.setSelected(true);
+        else rawModeBtn.setSelected(true);
+
+        thresholdSlider.setValue(node.getThreshold());
+        thresholdValueField.setText(String.format("%.4f", node.getThreshold()));
+        histogram.setPosColor(ColorUtils.intToColor(node.getPositiveColor()));
+        histogram.setNegColor(ColorUtils.intToColor(node.getNegativeColor()));
+
+        HBox threshRow = new HBox(8,
+            new Label("Threshold:") {{ setStyle("-fx-text-fill: white;"); }},
+            thresholdSlider, thresholdValueField);
+        HBox.setHgrow(thresholdSlider, Priority.ALWAYS);
+
+        gateSpecificArea.getChildren().addAll(
+            channelRow, modeRow,
+            createSectionHeader("Histogram"), histogram, hoverLabel,
+            createSectionHeader("Threshold"), threshRow, populationCountsLabel
+        );
     }
 
-    public void setCellIndex(CellIndex index) {
-        this.cellIndex = index;
+    private void buildQuadrantEditor(QuadrantGate gate) {
+        Label chXLabel = new Label("Channel X:");
+        chXLabel.setStyle("-fx-text-fill: white;");
+        ComboBox<String> chXCombo = new ComboBox<>(channelCombo.getItems());
+        chXCombo.setValue(gate.getChannelX());
+        chXCombo.setPrefWidth(150);
+        chXCombo.setOnAction(e -> { if (!suppressEvents) { gate.setChannelX(chXCombo.getValue()); fireNodeChanged(); }});
+
+        Label chYLabel = new Label("Channel Y:");
+        chYLabel.setStyle("-fx-text-fill: white;");
+        ComboBox<String> chYCombo = new ComboBox<>(channelCombo.getItems());
+        chYCombo.setValue(gate.getChannelY());
+        chYCombo.setPrefWidth(150);
+        chYCombo.setOnAction(e -> { if (!suppressEvents) { gate.setChannelY(chYCombo.getValue()); fireNodeChanged(); }});
+
+        Slider sliderX = new Slider(-5, 5, gate.getThresholdX());
+        sliderX.setBlockIncrement(0.01);
+        Label valX = new Label(String.format("%.3f", gate.getThresholdX()));
+        valX.setStyle("-fx-text-fill: white; -fx-font-family: monospace;");
+        sliderX.valueProperty().addListener((obs, old, val) -> {
+            if (!suppressEvents) { gate.setThresholdX(val.doubleValue()); valX.setText(String.format("%.3f", val.doubleValue())); fireNodeChanged(); }
+        });
+
+        Slider sliderY = new Slider(-5, 5, gate.getThresholdY());
+        sliderY.setBlockIncrement(0.01);
+        Label valY = new Label(String.format("%.3f", gate.getThresholdY()));
+        valY.setStyle("-fx-text-fill: white; -fx-font-family: monospace;");
+        sliderY.valueProperty().addListener((obs, old, val) -> {
+            if (!suppressEvents) { gate.setThresholdY(val.doubleValue()); valY.setText(String.format("%.3f", val.doubleValue())); fireNodeChanged(); }
+        });
+
+        HBox modeRow = new HBox(12, new Label("Mode:") {{ setStyle("-fx-text-fill: white;"); }}, rawModeBtn, zscoreModeBtn);
+        if (gate.isThresholdIsZScore()) zscoreModeBtn.setSelected(true);
+        else rawModeBtn.setSelected(true);
+
+        gateSpecificArea.getChildren().addAll(
+            new HBox(8, chXLabel, chXCombo), new HBox(8, chYLabel, chYCombo),
+            modeRow,
+            createSectionHeader("Threshold X"), new HBox(8, sliderX, valX),
+            createSectionHeader("Threshold Y"), new HBox(8, sliderY, valY)
+        );
     }
 
-    public void setMarkerStats(MarkerStats stats) {
-        this.markerStats = stats;
+    private void buildBooleanEditor(BooleanGate gate) {
+        Label opLabel = new Label("Operation:");
+        opLabel.setStyle("-fx-text-fill: white;");
+        ComboBox<String> opCombo = new ComboBox<>();
+        opCombo.getItems().addAll("AND", "OR", "NOT");
+        opCombo.setValue(gate.getOperation().name());
+        opCombo.setOnAction(e -> {
+            if (!suppressEvents) {
+                gate.setOperation(BooleanGate.Op.valueOf(opCombo.getValue()));
+                fireNodeChanged();
+            }
+        });
+
+        Label info = new Label("Boolean gates combine other gates.\nAdd operand gates as children of the 'Match' branch.");
+        info.setStyle("-fx-text-fill: #aaaaaa; -fx-font-size: 10;");
+        info.setWrapText(true);
+
+        Label operandCount = new Label("Operands: " + gate.getOperands().size());
+        operandCount.setStyle("-fx-text-fill: white;");
+
+        gateSpecificArea.getChildren().addAll(
+            new HBox(8, opLabel, opCombo), info, operandCount
+        );
     }
 
-    public void setOnNodeChanged(Consumer<GateNode> callback) {
-        this.onNodeChanged = callback;
+    private void build2DEditor(GateNode node) {
+        String chX = node.getChannels().isEmpty() ? "" : node.getChannels().get(0);
+        String chY = node.getChannels().size() > 1 ? node.getChannels().get(1) : "";
+
+        Label info = new Label("2D " + node.getGateType() + " gate on " + chX + " vs " + chY);
+        info.setStyle("-fx-text-fill: white;");
+
+        // Show scatter plot if we have data
+        if (cellIndex != null && !chX.isEmpty() && !chY.isEmpty()) {
+            int mxIdx = cellIndex.getMarkerIndex(chX);
+            int myIdx = cellIndex.getMarkerIndex(chY);
+            if (mxIdx >= 0 && myIdx >= 0) {
+                ScatterPlotCanvas scatter = new ScatterPlotCanvas();
+                scatter.setData(cellIndex.getMarkerValues(mxIdx), cellIndex.getMarkerValues(myIdx), chX, chY);
+
+                if (node instanceof PolygonGate pg && pg.getVertices().size() >= 3) {
+                    scatter.setPolygonOverlay(pg.getVertices());
+                } else if (node instanceof RectangleGate rg) {
+                    scatter.setRectangleOverlay(rg.getMinX(), rg.getMaxX(), rg.getMinY(), rg.getMaxY());
+                } else if (node instanceof EllipseGate eg) {
+                    scatter.setEllipseOverlay(eg.getCenterX(), eg.getCenterY(), eg.getRadiusX(), eg.getRadiusY());
+                }
+
+                gateSpecificArea.getChildren().addAll(info, scatter);
+                return;
+            }
+        }
+
+        Label noData = new Label("Load an image to see the scatter plot");
+        noData.setStyle("-fx-text-fill: #888888;");
+        gateSpecificArea.getChildren().addAll(info, noData);
     }
 
-    public void setOnAddToPositive(Runnable callback) {
-        this.onAddToPositive = callback;
+    // ---- Branch names/colors editor (generic for any gate type) ----
+
+    private void buildBranchNamesEditor(GateNode node) {
+        branchNamesArea.getChildren().clear();
+        branchNamesArea.getChildren().add(createSectionHeader("Branch Names & Colors"));
+
+        GridPane grid = new GridPane();
+        grid.setHgap(6);
+        grid.setVgap(4);
+
+        List<Branch> branches = node.getBranches();
+        for (int i = 0; i < branches.size(); i++) {
+            Branch branch = branches.get(i);
+            int idx = i;
+
+            Label label = new Label("Branch " + (i + 1) + ":");
+            label.setStyle("-fx-text-fill: " + (i == 0 ? "#00cc00" : "#999999") + ";");
+
+            TextField nameField = new TextField(branch.getName());
+            nameField.setPrefWidth(120);
+            nameField.textProperty().addListener((obs, old, val) -> {
+                if (!suppressEvents && val != null && !val.isBlank()) {
+                    branch.setName(val);
+                    fireNodeChanged();
+                }
+            });
+
+            ColorPicker colorPicker = new ColorPicker(ColorUtils.intToColor(branch.getColor()));
+            colorPicker.setPrefWidth(80);
+            colorPicker.valueProperty().addListener((obs, old, val) -> {
+                if (!suppressEvents) {
+                    branch.setColor(ColorUtils.colorToInt(val));
+                    fireNodeChanged();
+                }
+            });
+
+            Label countLabel = new Label(String.format("%,d", branch.getCount()));
+            countLabel.setStyle("-fx-text-fill: #aaaaaa; -fx-font-size: 10;");
+
+            grid.add(label, 0, i);
+            grid.add(nameField, 1, i);
+            grid.add(colorPicker, 2, i);
+            grid.add(countLabel, 3, i);
+        }
+
+        branchNamesArea.getChildren().add(grid);
     }
 
-    public void setOnAddToNegative(Runnable callback) {
-        this.onAddToNegative = callback;
+    // ---- Action buttons (generic for any gate type) ----
+
+    private void buildActionButtons(GateNode node) {
+        actionButtonArea.getChildren().clear();
+
+        List<Branch> branches = node.getBranches();
+        HBox buttonRow = new HBox(8);
+
+        // Add "Add child gate to [branch]" button for each branch
+        for (int i = 0; i < branches.size(); i++) {
+            Branch branch = branches.get(i);
+            int branchIdx = i;
+            Button addBtn = new Button("+ " + branch.getName());
+            addBtn.setStyle("-fx-base: #003300;");
+            addBtn.setTooltip(new Tooltip("Add a child gate to '" + branch.getName() + "'"));
+            addBtn.setOnAction(e -> {
+                if (onAddToBranch != null) onAddToBranch.accept(branchIdx);
+            });
+            buttonRow.getChildren().add(addBtn);
+        }
+
+        Button removeBtn = new Button("Remove Gate");
+        removeBtn.setStyle("-fx-base: #440000;");
+        removeBtn.setTooltip(new Tooltip("Remove this gate and all its children (Del)"));
+        removeBtn.setOnAction(e -> { if (onRemoveGate != null) onRemoveGate.run(); });
+        buttonRow.getChildren().add(removeBtn);
+
+        actionButtonArea.getChildren().add(buttonRow);
     }
 
-    public void setOnRemoveGate(Runnable callback) {
-        this.onRemoveGate = callback;
+    // ---- Public API ----
+
+    public void setChannelNames(List<String> names) { channelCombo.getItems().setAll(names); }
+    public void setCellIndex(CellIndex index) { this.cellIndex = index; }
+    public void setMarkerStats(MarkerStats stats) { this.markerStats = stats; }
+    public void setOnNodeChanged(Consumer<GateNode> callback) { this.onNodeChanged = callback; }
+    public void setOnAddToPositive(Runnable callback) { this.onAddToPositive = callback; }
+    public void setOnAddToNegative(Runnable callback) { this.onAddToNegative = callback; }
+    public void setOnAddToBranch(IntConsumer callback) { this.onAddToBranch = callback; }
+    public void setOnRemoveGate(Runnable callback) { this.onRemoveGate = callback; }
+
+    public boolean isUseZScore() { return zscoreModeBtn.isSelected(); }
+
+    public void updatePopulationCounts() {
+        if (currentNode == null) {
+            populationCountsLabel.setText("Positive: -- | Negative: --");
+            return;
+        }
+        List<Branch> branches = currentNode.getBranches();
+        if (branches.size() == 2) {
+            int pos = branches.get(0).getCount();
+            int neg = branches.get(1).getCount();
+            int total = pos + neg;
+            if (total > 0) {
+                populationCountsLabel.setText(String.format(
+                    "%s: %,d (%.1f%%) | %s: %,d (%.1f%%)",
+                    branches.get(0).getName(), pos, 100.0 * pos / total,
+                    branches.get(1).getName(), neg, 100.0 * neg / total));
+            } else {
+                populationCountsLabel.setText(branches.get(0).getName() + ": 0 | " + branches.get(1).getName() + ": 0");
+            }
+        }
     }
 
-    public boolean isUseZScore() {
-        return zscoreModeBtn.isSelected();
-    }
+    // ---- Internal ----
 
     private void updateHistogram() {
         if (currentNode == null || cellIndex == null || markerStats == null) return;
-
         String channel = currentNode.getChannel();
         if (channel == null) return;
-
         int markerIdx = cellIndex.getMarkerIndex(channel);
         if (markerIdx < 0) return;
 
@@ -389,23 +531,15 @@ public class GateEditorPane extends VBox {
             displayValues = rawValues;
         }
 
-        // Clip range
-        double clipLow = currentNode.getClipPercentileLow();
-        double clipHigh = currentNode.getClipPercentileHigh();
-
-        // Compute clip values from percentiles
         double[] sorted = displayValues.clone();
         java.util.Arrays.sort(sorted);
-        double clipMin = percentile(sorted, clipLow);
-        double clipMax = percentile(sorted, clipHigh);
+        double clipMin = percentile(sorted, currentNode.getClipPercentileLow());
+        double clipMax = percentile(sorted, currentNode.getClipPercentileHigh());
 
         histogram.setData(displayValues, clipMin, clipMax);
         histogram.setThreshold(currentNode.getThreshold());
-
-        // Update slider range to match display
         thresholdSlider.setMin(clipMin);
         thresholdSlider.setMax(clipMax);
-
         updatePopulationCounts();
     }
 
@@ -421,17 +555,11 @@ public class GateEditorPane extends VBox {
 
     private void withSuppressedEvents(Runnable action) {
         suppressEvents = true;
-        try {
-            action.run();
-        } finally {
-            suppressEvents = false;
-        }
+        try { action.run(); } finally { suppressEvents = false; }
     }
 
     private void fireNodeChanged() {
-        if (onNodeChanged != null && currentNode != null) {
-            onNodeChanged.accept(currentNode);
-        }
+        if (onNodeChanged != null && currentNode != null) onNodeChanged.accept(currentNode);
     }
 
     private void applyThresholdFromField() {
@@ -450,33 +578,10 @@ public class GateEditorPane extends VBox {
         }
     }
 
-    /**
-     * Refresh the population counts label from the current GateNode.
-     */
-    public void updatePopulationCounts() {
-        if (currentNode == null) {
-            populationCountsLabel.setText("Positive: -- | Negative: --");
-            return;
-        }
-        int pos = currentNode.getPosCount();
-        int neg = currentNode.getNegCount();
-        int total = pos + neg;
-        if (total > 0) {
-            double posPct = 100.0 * pos / total;
-            double negPct = 100.0 * neg / total;
-            populationCountsLabel.setText(String.format(
-                "Positive: %,d (%.1f%%) | Negative: %,d (%.1f%%)",
-                pos, posPct, neg, negPct));
-        } else {
-            populationCountsLabel.setText("Positive: 0 (0.0%) | Negative: 0 (0.0%)");
-        }
-    }
-
     private static Label createSectionHeader(String text) {
         Label header = new Label(text);
         header.setStyle("-fx-text-fill: #888888; -fx-font-size: 10; -fx-font-weight: bold;");
         header.setPadding(new Insets(4, 0, 0, 0));
         return header;
     }
-
 }

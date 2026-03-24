@@ -82,26 +82,12 @@ public class BooleanGate extends GateNode {
     public GateNode deepCopy() {
         BooleanGate copy = new BooleanGate();
         copy.operation = this.operation;
-        copy.setClipPercentileLow(this.getClipPercentileLow());
-        copy.setClipPercentileHigh(this.getClipPercentileHigh());
-        copy.setExcludeOutliers(this.isExcludeOutliers());
         copy.operands = new ArrayList<>();
         for (GateNode op : this.operands) {
             copy.operands.add(op.deepCopy());
         }
-        // Copy branch metadata and children
-        copy.matchBranch.setName(this.matchBranch.getName());
-        copy.matchBranch.setColor(this.matchBranch.getColor());
-        copy.matchBranch.setChildren(new ArrayList<>());
-        for (GateNode child : this.matchBranch.getChildren()) {
-            copy.matchBranch.getChildren().add(child.deepCopy());
-        }
-        copy.noMatchBranch.setName(this.noMatchBranch.getName());
-        copy.noMatchBranch.setColor(this.noMatchBranch.getColor());
-        copy.noMatchBranch.setChildren(new ArrayList<>());
-        for (GateNode child : this.noMatchBranch.getChildren()) {
-            copy.noMatchBranch.getChildren().add(child.deepCopy());
-        }
+        copySharedFieldsTo(copy);
+        copyBranchesTo(copy);
         return copy;
     }
 }

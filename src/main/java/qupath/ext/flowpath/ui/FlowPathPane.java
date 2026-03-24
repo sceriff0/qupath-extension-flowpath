@@ -15,12 +15,16 @@ import qupath.ext.flowpath.engine.GatingEngine;
 import qupath.ext.flowpath.engine.LivePreviewService;
 import qupath.ext.flowpath.io.FlowPathSerializer;
 import qupath.ext.flowpath.io.PhenotypeCsvExporter;
+import qupath.ext.flowpath.model.BooleanGate;
 import qupath.ext.flowpath.model.Branch;
 import qupath.ext.flowpath.model.CellIndex;
+import qupath.ext.flowpath.model.EllipseGate;
 import qupath.ext.flowpath.model.GateNode;
 import qupath.ext.flowpath.model.GateTree;
 import qupath.ext.flowpath.model.MarkerStats;
+import qupath.ext.flowpath.model.PolygonGate;
 import qupath.ext.flowpath.model.QuadrantGate;
+import qupath.ext.flowpath.model.RectangleGate;
 import qupath.lib.gui.QuPathGUI;
 import qupath.lib.gui.dialogs.Dialogs;
 import qupath.lib.images.ImageData;
@@ -125,6 +129,7 @@ public class FlowPathPane extends BorderPane {
         editorPane.setOnNodeChanged(node -> onGateNodeChanged());
         editorPane.setOnAddToPositive(this::addGateToPositive);
         editorPane.setOnAddToNegative(this::addGateToNegative);
+        editorPane.setOnAddToBranch(this::addChildGate);
         editorPane.setOnRemoveGate(this::removeSelectedGate);
 
         ScrollPane editorScroll = new ScrollPane(editorPane);
@@ -355,34 +360,59 @@ public class FlowPathPane extends BorderPane {
             Dialogs.showWarningNotification("FlowPath", "No markers available. Load an image with detections first.");
             return;
         }
-
-        String channel = markerNames.get(0);
-        GateNode node = new GateNode(channel);
+        GateNode node = promptForNewGate();
+        if (node == null) return;
         gateTree.addRoot(node);
         rebuildTreeView();
         requestPreviewUpdate();
     }
 
     private void addGateToPositive() {
+        addChildGate(0);
+    }
+
+    private void addGateToNegative() {
+        addChildGate(1);
+    }
+
+    private void addChildGate(int branchIndex) {
         GateNode selected = getSelectedGateNode();
         if (selected == null || markerNames == null || markerNames.isEmpty()) return;
+        if (branchIndex >= selected.getBranches().size()) return;
 
-        String channel = markerNames.get(0);
-        GateNode child = new GateNode(channel);
-        selected.getPositiveChildren().add(child);
+        GateNode child = promptForNewGate();
+        if (child == null) return;
+        selected.getBranches().get(branchIndex).getChildren().add(child);
         rebuildTreeView();
         requestPreviewUpdate();
     }
 
-    private void addGateToNegative() {
-        GateNode selected = getSelectedGateNode();
-        if (selected == null || markerNames == null || markerNames.isEmpty()) return;
+    /**
+     * Show a dialog to choose gate type and create a new gate node.
+     * Returns null if the user cancels.
+     */
+    private GateNode promptForNewGate() {
+        List<String> gateTypes = List.of("Threshold", "Quadrant", "Boolean", "Polygon", "Rectangle", "Ellipse");
+        ChoiceDialog<String> dialog = new ChoiceDialog<>("Threshold", gateTypes);
+        dialog.setTitle("Add Gate");
+        dialog.setHeaderText("Select gate type");
+        dialog.setContentText("Gate type:");
 
-        String channel = markerNames.get(0);
-        GateNode child = new GateNode(channel);
-        selected.getNegativeChildren().add(child);
-        rebuildTreeView();
-        requestPreviewUpdate();
+        var result = dialog.showAndWait();
+        if (result.isEmpty()) return null;
+
+        String ch = markerNames.get(0);
+        String ch2 = markerNames.size() > 1 ? markerNames.get(1) : ch;
+
+        return switch (result.get()) {
+            case "Threshold" -> new GateNode(ch);
+            case "Quadrant" -> new QuadrantGate(ch, ch2);
+            case "Boolean" -> new BooleanGate(BooleanGate.Op.AND, "Boolean");
+            case "Polygon" -> new PolygonGate(ch, ch2);
+            case "Rectangle" -> new RectangleGate(ch, ch2, 0, 1, 0, 1);
+            case "Ellipse" -> new EllipseGate(ch, ch2, 0.5, 0.5, 0.5, 0.5);
+            default -> new GateNode(ch);
+        };
     }
 
     private void removeSelectedGate() {

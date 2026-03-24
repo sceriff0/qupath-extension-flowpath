@@ -143,20 +143,8 @@ public class QuadrantGate extends GateNode {
         copy.thresholdX = this.thresholdX;
         copy.thresholdY = this.thresholdY;
         copy.thresholdIsZScore = this.thresholdIsZScore;
-        copy.setClipPercentileLow(this.getClipPercentileLow());
-        copy.setClipPercentileHigh(this.getClipPercentileHigh());
-        copy.setExcludeOutliers(this.isExcludeOutliers());
-        // Copy branch metadata and children
-        for (int i = 0; i < 4; i++) {
-            Branch src = this.getBranches().get(i);
-            Branch dst = copy.getBranches().get(i);
-            dst.setName(src.getName());
-            dst.setColor(src.getColor());
-            dst.setChildren(new ArrayList<>());
-            for (GateNode child : src.getChildren()) {
-                dst.getChildren().add(child.deepCopy());
-            }
-        }
+        copySharedFieldsTo(copy);
+        copyBranchesTo(copy);
         return copy;
     }
 }

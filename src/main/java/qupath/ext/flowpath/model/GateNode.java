@@ -147,6 +147,35 @@ public class GateNode {
     }
 
     /**
+     * Copy shared gate fields (clipping, outlier settings) to a target node.
+     * Subclasses should call this in their deepCopy implementations.
+     */
+    protected void copySharedFieldsTo(GateNode target) {
+        target.clipPercentileLow = this.clipPercentileLow;
+        target.clipPercentileHigh = this.clipPercentileHigh;
+        target.excludeOutliers = this.excludeOutliers;
+    }
+
+    /**
+     * Copy branch metadata and children from this node's branches to the target's.
+     * Both nodes must have the same number of branches.
+     */
+    protected void copyBranchesTo(GateNode target) {
+        List<Branch> srcBranches = this.getBranches();
+        List<Branch> dstBranches = target.getBranches();
+        for (int i = 0; i < srcBranches.size() && i < dstBranches.size(); i++) {
+            Branch src = srcBranches.get(i);
+            Branch dst = dstBranches.get(i);
+            dst.setName(src.getName());
+            dst.setColor(src.getColor());
+            dst.setChildren(new ArrayList<>());
+            for (GateNode child : src.getChildren()) {
+                dst.getChildren().add(child.deepCopy());
+            }
+        }
+    }
+
+    /**
      * Create a deep copy of this node and all descendants.
      */
     public GateNode deepCopy() {
@@ -154,22 +183,8 @@ public class GateNode {
         copy.channel = this.channel;
         copy.threshold = this.threshold;
         copy.thresholdIsZScore = this.thresholdIsZScore;
-        copy.clipPercentileLow = this.clipPercentileLow;
-        copy.clipPercentileHigh = this.clipPercentileHigh;
-        copy.excludeOutliers = this.excludeOutliers;
-        // Copy branch metadata and children
-        copy.positiveBranch.setName(this.positiveBranch.getName());
-        copy.positiveBranch.setColor(this.positiveBranch.getColor());
-        copy.positiveBranch.setChildren(new ArrayList<>());
-        for (GateNode child : this.positiveBranch.getChildren()) {
-            copy.positiveBranch.getChildren().add(child.deepCopy());
-        }
-        copy.negativeBranch.setName(this.negativeBranch.getName());
-        copy.negativeBranch.setColor(this.negativeBranch.getColor());
-        copy.negativeBranch.setChildren(new ArrayList<>());
-        for (GateNode child : this.negativeBranch.getChildren()) {
-            copy.negativeBranch.getChildren().add(child.deepCopy());
-        }
+        copySharedFieldsTo(copy);
+        copyBranchesTo(copy);
         return copy;
     }
 
