@@ -112,9 +112,9 @@ public class PhenotypeCsvExporter {
         }
     }
 
-    /** Format a double for CSV; NaN → empty string. */
+    /** Format a double for CSV; NaN → empty string. Uses US locale to ensure dot decimal separator. */
     private static String fmt(double val) {
-        return Double.isNaN(val) ? "" : String.format("%.4f", val);
+        return Double.isNaN(val) ? "" : String.format(java.util.Locale.US, "%.4f", val);
     }
 
     /**
