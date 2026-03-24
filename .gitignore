@@ -14,3 +14,13 @@ build/
 # OS
 .DS_Store
 Thumbs.db
+
+# Claude
+.claude
+.planning
+scripts
+Claude.md
+
+# Files
+ARCHITECTURE.md
+example.geojson

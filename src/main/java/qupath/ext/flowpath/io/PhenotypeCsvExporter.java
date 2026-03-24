@@ -51,7 +51,6 @@ public class PhenotypeCsvExporter {
             traceMarkerSigns(root, new LinkedHashMap<>(), phenotypeMarkerSigns);
         }
 
-        boolean excludeFiltered = tree.getQualityFilter().isExcludeFromCsv();
         String[] phenotypes = result.getPhenotypes();
         boolean[] excluded = result.getExcluded();
 
@@ -69,7 +68,7 @@ public class PhenotypeCsvExporter {
             // Write one row per non-excluded cell
             int n = index.getSize();
             for (int i = 0; i < n; i++) {
-                if (excludeFiltered && excluded[i]) {
+                if (excluded[i]) {
                     continue;
                 }
 

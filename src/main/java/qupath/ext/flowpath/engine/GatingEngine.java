@@ -5,7 +5,9 @@ import qupath.ext.flowpath.model.GateNode;
 import qupath.ext.flowpath.model.GateTree;
 import qupath.ext.flowpath.model.MarkerStats;
 import qupath.ext.flowpath.model.QualityFilter;
+import qupath.lib.roi.interfaces.ROI;
 
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -50,14 +52,26 @@ public final class GatingEngine {
 
     /**
      * Assign phenotypes to every cell by walking the gate tree.
+     * Delegates to {@link #assignAll(GateTree, CellIndex, MarkerStats, boolean, boolean[])}
+     * with no ROI mask.
+     */
+    public static AssignmentResult assignAll(GateTree tree, CellIndex index, MarkerStats stats, boolean useZScore) {
+        return assignAll(tree, index, stats, useZScore, null);
+    }
+
+    /**
+     * Assign phenotypes to every cell by walking the gate tree.
      *
      * @param tree      the gate tree (roots + quality filter)
      * @param index     columnar cell data
      * @param stats     per-marker statistics (mean, std, percentiles)
      * @param useZScore if {@code true}, thresholds are compared against z-scored values
+     * @param roiMask   optional boolean mask where {@code true} means the cell is inside the ROI;
+     *                  {@code null} means no ROI filtering
      * @return assignment result with phenotypes, exclusion flags, and colors
      */
-    public static AssignmentResult assignAll(GateTree tree, CellIndex index, MarkerStats stats, boolean useZScore) {
+    public static AssignmentResult assignAll(GateTree tree, CellIndex index, MarkerStats stats,
+                                              boolean useZScore, boolean[] roiMask) {
         int n = index.size();
         String[] phenotypes = new String[n];
         boolean[] excluded = new boolean[n];
@@ -74,6 +88,16 @@ public final class GatingEngine {
             for (int i = 0; i < n; i++) {
                 if (!qf.passes(index.getArea(i), index.getEccentricity(i),
                         index.getSolidity(i), index.getTotalIntensity(i))) {
+                    excluded[i] = true;
+                    phenotypes[i] = null;
+                }
+            }
+        }
+
+        // 2b. Apply ROI mask
+        if (roiMask != null) {
+            for (int i = 0; i < n; i++) {
+                if (!roiMask[i]) {
                     excluded[i] = true;
                     phenotypes[i] = null;
                 }
@@ -123,6 +147,34 @@ public final class GatingEngine {
         return mask;
     }
 
+    /**
+     * Compute a boolean mask indicating which cells fall inside the given ROI.
+     * If {@code roi} is {@code null}, all cells pass.
+     */
+    public static boolean[] computeRoiMask(CellIndex index, ROI roi) {
+        int n = index.size();
+        boolean[] mask = new boolean[n];
+        if (roi == null) {
+            Arrays.fill(mask, true);
+            return mask;
+        }
+        for (int i = 0; i < n; i++) {
+            mask[i] = roi.contains(index.getCentroidX(i), index.getCentroidY(i));
+        }
+        return mask;
+    }
+
+    /**
+     * Combine two boolean masks with logical AND. Both arrays must have the same length.
+     */
+    public static boolean[] combineMasks(boolean[] a, boolean[] b) {
+        boolean[] result = new boolean[a.length];
+        for (int i = 0; i < a.length; i++) {
+            result[i] = a[i] && b[i];
+        }
+        return result;
+    }
+
     // ---- private helpers ----
 
     private static void walkRoots(List<GateNode> roots, int cellIdx,
@@ -148,7 +200,7 @@ public final class GatingEngine {
         double rawValue = index.getMarkerValues(markerIdx)[cellIdx];
 
         // Outlier exclusion based on percentile clip bounds
-        if (node.isHideOutliers()) {
+        if (node.isExcludeOutliers()) {
             double lo = stats.getPercentileValue(channel, node.getClipPercentileLow());
             double hi = stats.getPercentileValue(channel, node.getClipPercentileHigh());
             if (rawValue < lo || rawValue > hi) {

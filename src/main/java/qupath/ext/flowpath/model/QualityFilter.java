@@ -8,7 +8,7 @@ public class QualityFilter {
     private double maxEccentricity = 1.0;
     private double minSolidity = 0.0;
     private boolean hideFiltered = true;
-    private boolean excludeFromCsv = true;
+
 
     public QualityFilter() {
     }
@@ -69,11 +69,4 @@ public class QualityFilter {
         this.hideFiltered = hideFiltered;
     }
 
-    public boolean isExcludeFromCsv() {
-        return excludeFromCsv;
-    }
-
-    public void setExcludeFromCsv(boolean excludeFromCsv) {
-        this.excludeFromCsv = excludeFromCsv;
-    }
 }

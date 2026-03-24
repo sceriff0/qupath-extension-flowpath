@@ -34,12 +34,16 @@ public class LivePreviewService {
     private volatile MarkerStats markerStats;
     private volatile boolean useZScore;
     private volatile ImageData<?> imageData;
+    private volatile boolean[] roiMask;
 
     /** Optional callback fired after MarkerStats is recomputed (e.g., to refresh UI sliders). */
     private Runnable onStatsRecomputed;
 
     /** Optional callback fired after cell classifications are applied (e.g., to refresh tree counts). */
     private Runnable onUpdateComplete;
+
+    /** Count of excluded cells from the most recent gating run (updated on FX thread). */
+    private int lastExcludedCount;
 
     public LivePreviewService() {
         this.executor = Executors.newSingleThreadExecutor(r -> {
@@ -77,12 +81,20 @@ public class LivePreviewService {
         this.imageData = imageData;
     }
 
+    public void setRoiMask(boolean[] roiMask) {
+        this.roiMask = roiMask;
+    }
+
     public void setOnStatsRecomputed(Runnable onStatsRecomputed) {
         this.onStatsRecomputed = onStatsRecomputed;
     }
 
     public void setOnUpdateComplete(Runnable onUpdateComplete) {
         this.onUpdateComplete = onUpdateComplete;
+    }
+
+    public int getLastExcludedCount() {
+        return lastExcludedCount;
     }
 
     // ---- public API ----
@@ -108,8 +120,10 @@ public class LivePreviewService {
         if (cellIndex == null || gateTree == null || executor.isShutdown()) {
             return;
         }
+        final boolean[] roi = this.roiMask;
         executor.submit(() -> {
-            boolean[] mask = GatingEngine.computeQualityMask(cellIndex, gateTree.getQualityFilter());
+            boolean[] qualityMask = GatingEngine.computeQualityMask(cellIndex, gateTree.getQualityFilter());
+            boolean[] mask = roi != null ? GatingEngine.combineMasks(qualityMask, roi) : qualityMask;
             MarkerStats recomputed = MarkerStats.compute(cellIndex, mask);
             this.markerStats = recomputed;
             if (onStatsRecomputed != null) {
@@ -138,6 +152,7 @@ public class LivePreviewService {
         final MarkerStats stats = this.markerStats;
         final boolean zScore = this.useZScore;
         final ImageData<?> data = this.imageData;
+        final boolean[] roi = this.roiMask;
 
         if (originalTree == null || index == null || stats == null || data == null) {
             return;
@@ -147,7 +162,7 @@ public class LivePreviewService {
         final GateTree tree = originalTree.deepCopy();
 
         executor.submit(() -> {
-            GatingEngine.AssignmentResult result = GatingEngine.assignAll(tree, index, stats, zScore);
+            GatingEngine.AssignmentResult result = GatingEngine.assignAll(tree, index, stats, zScore, roi);
 
             Platform.runLater(() -> {
                 // Transfer counts from the snapshot back to the live tree for UI display
@@ -162,6 +177,11 @@ public class LivePreviewService {
         boolean[] excluded = result.getExcluded();
         int[] colors = result.getColors();
         int n = phenotypes.length;
+
+        // Count total excluded cells for status display
+        int excCount = 0;
+        for (boolean ex : excluded) if (ex) excCount++;
+        this.lastExcludedCount = excCount;
 
         Map<String, PathClass> classCache = new HashMap<>();
 

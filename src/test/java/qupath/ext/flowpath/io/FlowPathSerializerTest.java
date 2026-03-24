@@ -29,7 +29,7 @@ class FlowPathSerializerTest {
         root.setNegativeColor((128 << 16) | (128 << 8) | 128);
         root.setClipPercentileLow(2.0);
         root.setClipPercentileHigh(98.0);
-        root.setHideOutliers(true);
+        root.setExcludeOutliers(true);
         root.setThresholdIsZScore(false);
         tree.addRoot(root);
 
@@ -48,7 +48,7 @@ class FlowPathSerializerTest {
         assertEquals((128 << 16) | (128 << 8) | 128, loadedRoot.getNegativeColor());
         assertEquals(2.0, loadedRoot.getClipPercentileLow());
         assertEquals(98.0, loadedRoot.getClipPercentileHigh());
-        assertTrue(loadedRoot.isHideOutliers());
+        assertTrue(loadedRoot.isExcludeOutliers());
     }
 
     @Test
@@ -87,7 +87,6 @@ class FlowPathSerializerTest {
         qf.setMaxEccentricity(0.9);
         qf.setMinSolidity(0.5);
         qf.setHideFiltered(false);
-        qf.setExcludeFromCsv(false);
         tree.setQualityFilter(qf);
         tree.addRoot(new GateNode("CD45"));
 
@@ -102,12 +101,11 @@ class FlowPathSerializerTest {
         assertEquals(0.9, lqf.getMaxEccentricity());
         assertEquals(0.5, lqf.getMinSolidity());
         assertFalse(lqf.isHideFiltered());
-        assertFalse(lqf.isExcludeFromCsv());
     }
 
     @Test
-    void legacyExcludeOutliersKeyMapsToHideOutliers() throws IOException {
-        // Simulate a v1 JSON with the old "excludeOutliers" key
+    void legacyHideOutliersKeyLoadsAsExcludeOutliers() throws IOException {
+        // Simulate a v1 JSON with the old "hideOutliers" key
         String json = """
                 {
                   "version": 1,
@@ -121,7 +119,7 @@ class FlowPathSerializerTest {
                       "negativeName": "CD45-",
                       "positiveColor": [0, 200, 0],
                       "negativeColor": [128, 128, 128],
-                      "excludeOutliers": true,
+                      "hideOutliers": true,
                       "positiveChildren": [],
                       "negativeChildren": []
                     }
@@ -134,7 +132,7 @@ class FlowPathSerializerTest {
         }
 
         GateTree loaded = FlowPathSerializer.load(file);
-        assertTrue(loaded.getRoots().get(0).isHideOutliers());
+        assertTrue(loaded.getRoots().get(0).isExcludeOutliers());
     }
 
     @Test

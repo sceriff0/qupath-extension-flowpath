@@ -36,7 +36,7 @@ public class GateEditorPane extends VBox {
     private final ColorPicker negColorPicker;
     private final Spinner<Double> clipLowSpinner;
     private final Spinner<Double> clipHighSpinner;
-    private final CheckBox hideOutliersBox;
+    private final CheckBox excludeOutliersBox;
     private final Label hoverLabel;
 
     private final Button addToPosBtn;
@@ -139,8 +139,8 @@ public class GateEditorPane extends VBox {
         clipHighSpinner = new Spinner<>(50.0, 100.0, 99.0, 0.5);
         clipHighSpinner.setPrefWidth(75);
         clipHighSpinner.setEditable(true);
-        hideOutliersBox = new CheckBox("Hide outliers");
-        hideOutliersBox.setStyle("-fx-text-fill: white;");
+        excludeOutliersBox = new CheckBox("Exclude outliers");
+        excludeOutliersBox.setStyle("-fx-text-fill: white;");
 
         clipLowSpinner.valueProperty().addListener((obs, old, val) -> {
             if (!suppressEvents && currentNode != null) {
@@ -156,9 +156,9 @@ public class GateEditorPane extends VBox {
                 fireNodeChanged();
             }
         });
-        hideOutliersBox.selectedProperty().addListener((obs, old, val) -> {
+        excludeOutliersBox.selectedProperty().addListener((obs, old, val) -> {
             if (!suppressEvents && currentNode != null) {
-                currentNode.setHideOutliers(val);
+                currentNode.setExcludeOutliers(val);
                 fireNodeChanged();
             }
         });
@@ -167,7 +167,7 @@ public class GateEditorPane extends VBox {
             new Label("Clip:") {{ setStyle("-fx-text-fill: white;"); }},
             clipLowSpinner, new Label("% to") {{ setStyle("-fx-text-fill: white;"); }},
             clipHighSpinner, new Label("%") {{ setStyle("-fx-text-fill: white;"); }},
-            hideOutliersBox);
+            excludeOutliersBox);
 
         // Population Names section header
         Label namesHeader = createSectionHeader("Population Names");
@@ -307,7 +307,7 @@ public class GateEditorPane extends VBox {
             negColorPicker.setValue(ColorUtils.intToColor(node.getNegativeColor()));
             clipLowSpinner.getValueFactory().setValue(node.getClipPercentileLow());
             clipHighSpinner.getValueFactory().setValue(node.getClipPercentileHigh());
-            hideOutliersBox.setSelected(node.isHideOutliers());
+            excludeOutliersBox.setSelected(node.isExcludeOutliers());
             histogram.setPosColor(ColorUtils.intToColor(node.getPositiveColor()));
             histogram.setNegColor(ColorUtils.intToColor(node.getNegativeColor()));
         });

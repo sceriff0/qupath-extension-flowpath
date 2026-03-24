@@ -7,6 +7,7 @@ public class GateTree {
 
     private List<GateNode> roots = new ArrayList<>();
     private QualityFilter qualityFilter = new QualityFilter();
+    private String roiFilterName;
 
     public GateTree() {
     }
@@ -35,6 +36,14 @@ public class GateTree {
         this.qualityFilter = qualityFilter;
     }
 
+    public String getRoiFilterName() {
+        return roiFilterName;
+    }
+
+    public void setRoiFilterName(String roiFilterName) {
+        this.roiFilterName = roiFilterName;
+    }
+
     /**
      * Create a deep copy of this tree (all nodes are cloned).
      * The quality filter is shared (it is effectively immutable during a gating run).
@@ -42,6 +51,7 @@ public class GateTree {
     public GateTree deepCopy() {
         GateTree copy = new GateTree();
         copy.qualityFilter = this.qualityFilter;
+        copy.roiFilterName = this.roiFilterName;
         copy.roots = new ArrayList<>();
         for (GateNode root : this.roots) {
             copy.roots.add(root.deepCopy());

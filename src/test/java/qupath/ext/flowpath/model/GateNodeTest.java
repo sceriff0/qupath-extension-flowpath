@@ -68,7 +68,7 @@ class GateNodeTest {
         node.setNegativeColor(0x808080);
         node.setClipPercentileLow(2.0);
         node.setClipPercentileHigh(98.0);
-        node.setHideOutliers(true);
+        node.setExcludeOutliers(true);
         node.setThresholdIsZScore(false);
 
         var copy = node.deepCopy();
@@ -81,7 +81,7 @@ class GateNodeTest {
         assertEquals(0x808080, copy.getNegativeColor());
         assertEquals(2.0, copy.getClipPercentileLow());
         assertEquals(98.0, copy.getClipPercentileHigh());
-        assertTrue(copy.isHideOutliers());
+        assertTrue(copy.isExcludeOutliers());
     }
 
     @Test

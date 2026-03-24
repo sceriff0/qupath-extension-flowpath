@@ -14,7 +14,7 @@ public class GateNode {
     private int negativeColor = (128 << 16) | (128 << 8) | 128; // gray
     private double clipPercentileLow = 1.0;
     private double clipPercentileHigh = 99.0;
-    private boolean hideOutliers = false;
+    private boolean excludeOutliers = false;
     private List<GateNode> positiveChildren = new ArrayList<>();
     private List<GateNode> negativeChildren = new ArrayList<>();
 
@@ -108,12 +108,12 @@ public class GateNode {
         this.clipPercentileHigh = clipPercentileHigh;
     }
 
-    public boolean isHideOutliers() {
-        return hideOutliers;
+    public boolean isExcludeOutliers() {
+        return excludeOutliers;
     }
 
-    public void setHideOutliers(boolean hideOutliers) {
-        this.hideOutliers = hideOutliers;
+    public void setExcludeOutliers(boolean excludeOutliers) {
+        this.excludeOutliers = excludeOutliers;
     }
 
     public List<GateNode> getPositiveChildren() {
@@ -167,7 +167,7 @@ public class GateNode {
         copy.negativeColor = this.negativeColor;
         copy.clipPercentileLow = this.clipPercentileLow;
         copy.clipPercentileHigh = this.clipPercentileHigh;
-        copy.hideOutliers = this.hideOutliers;
+        copy.excludeOutliers = this.excludeOutliers;
         copy.positiveChildren = new ArrayList<>();
         for (GateNode child : this.positiveChildren) {
             copy.positiveChildren.add(child.deepCopy());

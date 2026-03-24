@@ -8,7 +8,6 @@ import javafx.scene.control.Slider;
 import javafx.scene.control.TitledPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.VBox;
-import qupath.ext.flowpath.model.MarkerStats;
 import qupath.ext.flowpath.model.QualityFilter;
 
 import java.util.function.Consumer;
@@ -36,7 +35,6 @@ public class QualityFilterPane extends TitledPane {
     private final Label filteredCountLabel;
 
     private final CheckBox hideFilteredBox;
-    private final CheckBox excludeCsvBox;
 
     private Consumer<QualityFilter> onFilterChanged;
 
@@ -99,14 +97,10 @@ public class QualityFilterPane extends TitledPane {
         grid.add(hideFilteredBox, 0, row, 2, 1);
         row++;
 
-        excludeCsvBox = new CheckBox("Exclude from CSV");
-        excludeCsvBox.setSelected(filter.isExcludeFromCsv());
-        grid.add(excludeCsvBox, 0, row, 2, 1);
-        row++;
 
         // Filtered count
         filteredCountLabel = new Label("Filtered: 0 / 0 cells");
-        filteredCountLabel.setStyle("-fx-font-weight: bold; -fx-text-fill: #ff9900;");
+        filteredCountLabel.setStyle("-fx-font-weight: bold; -fx-text-fill: white;");
         grid.add(filteredCountLabel, 0, row, 3, 1);
         row++;
 
@@ -160,11 +154,6 @@ public class QualityFilterPane extends TitledPane {
             filter.setHideFiltered(val);
             fireChanged();
         });
-        excludeCsvBox.selectedProperty().addListener((obs, old, val) -> {
-            if (suppressEvents) return;
-            filter.setExcludeFromCsv(val);
-            fireChanged();
-        });
     }
 
     /**
@@ -184,7 +173,6 @@ public class QualityFilterPane extends TitledPane {
         soliditySlider.setValue(newFilter.getMinSolidity());
         solidLabel.setText(fmt(newFilter.getMinSolidity()));
         hideFilteredBox.setSelected(newFilter.isHideFiltered());
-        excludeCsvBox.setSelected(newFilter.isExcludeFromCsv());
         suppressEvents = false;
     }
 

@@ -42,6 +42,9 @@ public class FlowPathSerializer {
         JsonObject root = new JsonObject();
         root.addProperty("version", CURRENT_VERSION);
         root.add("qualityFilter", serializeQualityFilter(tree.getQualityFilter()));
+        if (tree.getRoiFilterName() != null) {
+            root.addProperty("roiFilterName", tree.getRoiFilterName());
+        }
         root.add("gates", serializeNodeList(tree.getRoots()));
 
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
@@ -76,6 +79,10 @@ public class FlowPathSerializer {
             tree.setQualityFilter(deserializeQualityFilter(root.getAsJsonObject("qualityFilter")));
         }
 
+        if (root.has("roiFilterName")) {
+            tree.setRoiFilterName(root.get("roiFilterName").getAsString());
+        }
+
         if (root.has("gates")) {
             tree.setRoots(deserializeNodeList(root.getAsJsonArray("gates")));
         }
@@ -95,7 +102,6 @@ public class FlowPathSerializer {
         obj.addProperty("maxEccentricity", qf.getMaxEccentricity());
         obj.addProperty("minSolidity", qf.getMinSolidity());
         obj.addProperty("hideFiltered", qf.isHideFiltered());
-        obj.addProperty("excludeFromCsv", qf.isExcludeFromCsv());
         return obj;
     }
 
@@ -113,8 +119,6 @@ public class FlowPathSerializer {
             qf.setMinSolidity(obj.get("minSolidity").getAsDouble());
         if (obj.has("hideFiltered"))
             qf.setHideFiltered(obj.get("hideFiltered").getAsBoolean());
-        if (obj.has("excludeFromCsv"))
-            qf.setExcludeFromCsv(obj.get("excludeFromCsv").getAsBoolean());
         return qf;
     }
 
@@ -141,7 +145,7 @@ public class FlowPathSerializer {
         obj.add("negativeColor", ColorUtils.toJsonArray(node.getNegativeColor()));
         obj.addProperty("clipPercentileLow", node.getClipPercentileLow());
         obj.addProperty("clipPercentileHigh", node.getClipPercentileHigh());
-        obj.addProperty("hideOutliers", node.isHideOutliers());
+        obj.addProperty("excludeOutliers", node.isExcludeOutliers());
         obj.add("positiveChildren", serializeNodeList(node.getPositiveChildren()));
         obj.add("negativeChildren", serializeNodeList(node.getNegativeChildren()));
         return obj;
@@ -176,10 +180,10 @@ public class FlowPathSerializer {
             node.setClipPercentileLow(obj.get("clipPercentileLow").getAsDouble());
         if (obj.has("clipPercentileHigh"))
             node.setClipPercentileHigh(obj.get("clipPercentileHigh").getAsDouble());
-        if (obj.has("hideOutliers"))
-            node.setHideOutliers(obj.get("hideOutliers").getAsBoolean());
-        else if (obj.has("excludeOutliers"))
-            node.setHideOutliers(obj.get("excludeOutliers").getAsBoolean());
+        if (obj.has("excludeOutliers"))
+            node.setExcludeOutliers(obj.get("excludeOutliers").getAsBoolean());
+        else if (obj.has("hideOutliers"))
+            node.setExcludeOutliers(obj.get("hideOutliers").getAsBoolean());
         if (obj.has("positiveChildren"))
             node.setPositiveChildren(deserializeNodeList(obj.getAsJsonArray("positiveChildren")));
         if (obj.has("negativeChildren"))
