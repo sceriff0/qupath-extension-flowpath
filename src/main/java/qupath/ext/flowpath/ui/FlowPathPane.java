@@ -35,6 +35,8 @@ import qupath.lib.roi.interfaces.ROI;
 
 import java.io.File;
 import java.util.*;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.stream.Collectors;
 
 /**
@@ -59,6 +61,11 @@ public class FlowPathPane extends BorderPane {
     private final LivePreviewService previewService;
     private final Label statusBar;
 
+    private static final int MAX_UNDO = 50;
+    private final Deque<GateTree> undoStack = new ArrayDeque<>();
+    private final Deque<GateTree> redoStack = new ArrayDeque<>();
+    private long lastUndoPushTime = 0;
+
     private GateTree gateTree;
     private CellIndex cellIndex;
     private MarkerStats markerStats;
@@ -75,7 +82,11 @@ public class FlowPathPane extends BorderPane {
 
         // --- Left side: TreeView + Quality Filter ---
         treeView = new TreeView<>();
-        treeView.setCellFactory(tv -> new FlowPathCell());
+        treeView.setCellFactory(tv -> {
+            FlowPathCell cell = new FlowPathCell();
+            cell.setOnGateDrop(this::handleGateDrop);
+            return cell;
+        });
         treeView.setShowRoot(false);
         treeView.setRoot(new TreeItem<>("Root"));
         treeView.getSelectionModel().selectedItemProperty().addListener((obs, old, sel) -> onTreeSelectionChanged(sel));
@@ -198,7 +209,11 @@ public class FlowPathPane extends BorderPane {
 
         // --- Keyboard shortcuts ---
         setOnKeyPressed(e -> {
-            if (new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN).match(e)) {
+            if (new KeyCodeCombination(KeyCode.Z, KeyCombination.SHORTCUT_DOWN, KeyCombination.SHIFT_DOWN).match(e)) {
+                redo(); e.consume();
+            } else if (new KeyCodeCombination(KeyCode.Z, KeyCombination.SHORTCUT_DOWN).match(e)) {
+                undo(); e.consume();
+            } else if (new KeyCodeCombination(KeyCode.S, KeyCombination.SHORTCUT_DOWN).match(e)) {
                 saveTree(); e.consume();
             } else if (new KeyCodeCombination(KeyCode.O, KeyCombination.SHORTCUT_DOWN).match(e)) {
                 loadTree(); e.consume();
@@ -395,6 +410,7 @@ public class FlowPathPane extends BorderPane {
         }
         GateNode node = promptForNewGate();
         if (node == null) return;
+        pushUndo();
         gateTree.addRoot(node);
         rebuildTreeView();
         requestPreviewUpdate();
@@ -415,6 +431,7 @@ public class FlowPathPane extends BorderPane {
 
         GateNode child = promptForNewGate();
         if (child == null) return;
+        pushUndo();
         selected.getBranches().get(branchIndex).getChildren().add(child);
         rebuildTreeView();
         requestPreviewUpdate();
@@ -458,6 +475,8 @@ public class FlowPathPane extends BorderPane {
                 "This gate has child gates. Remove entire subtree?");
             if (!confirm) return;
         }
+
+        pushUndo();
 
         // Remove from parent
         if (!gateTree.getRoots().remove(selected)) {
@@ -584,6 +603,7 @@ public class FlowPathPane extends BorderPane {
     // --- Updates ---
 
     private void onGateNodeChanged() {
+        pushUndoCoalesced();
         previewService.setUseZScore(editorPane.isUseZScore());
         requestPreviewUpdate();
     }
@@ -658,6 +678,7 @@ public class FlowPathPane extends BorderPane {
         File file = Dialogs.promptForFile("Load FlowPath", null, "JSON", ".json");
         if (file == null) return;
         try {
+            pushUndo();
             gateTree = FlowPathSerializer.load(file);
             // Sync the quality filter pane to the new filter object
             qualityFilterPane.setFilter(gateTree.getQualityFilter());
@@ -745,6 +766,7 @@ public class FlowPathPane extends BorderPane {
         GateNode selected = getSelectedGateNode();
         if (selected == null) return;
 
+        pushUndo();
         GateNode copy = selected.deepCopy();
 
         // Insert as sibling: find parent and add to the same branch
@@ -793,7 +815,7 @@ public class FlowPathPane extends BorderPane {
         try {
             // Save just the gate tree (no QF or ROI filter)
             GateTree templateTree = new GateTree();
-            templateTree.setRoots(gateTree.getRoots());
+            templateTree.setRoots(new java.util.ArrayList<>(gateTree.getRoots()));
             FlowPathSerializer.save(templateTree, file);
             Dialogs.showInfoNotification("FlowPath", "Template saved to " + file.getName());
         } catch (Exception ex) {
@@ -816,6 +838,111 @@ public class FlowPathPane extends BorderPane {
         } catch (Exception ex) {
             Dialogs.showErrorMessage("Load Template Error", ex.getMessage());
         }
+    }
+
+    // --- Drag-and-Drop ---
+
+    private void handleGateDrop(TreeItem<Object> sourceItem, TreeItem<Object> targetItem) {
+        if (sourceItem == null || targetItem == null) return;
+
+        Object sourceValue = sourceItem.getValue();
+        Object targetValue = targetItem.getValue();
+
+        // Only gate nodes can be dragged
+        if (!(sourceValue instanceof GateNode draggedGate)) return;
+
+        // Prevent dropping a gate onto itself or its own descendants
+        if (sourceValue == targetValue) return;
+        if (isDescendant(sourceItem, targetItem)) return;
+
+        pushUndo();
+
+        // Remove dragged gate from its current location
+        if (!gateTree.getRoots().remove(draggedGate)) {
+            removeFromTree(gateTree.getRoots(), draggedGate);
+        }
+
+        // Determine drop target
+        if (targetValue instanceof FlowPathCell.BranchItem bi) {
+            // Drop onto a branch: add as child of that branch
+            bi.branch.getChildren().add(draggedGate);
+        } else if (targetValue instanceof GateNode targetGate) {
+            // Drop onto a gate: insert as sibling after the target
+            if (gateTree.getRoots().contains(targetGate)) {
+                int idx = gateTree.getRoots().indexOf(targetGate);
+                gateTree.getRoots().add(idx + 1, draggedGate);
+            } else {
+                insertAfterGate(gateTree.getRoots(), targetGate, draggedGate);
+            }
+        } else {
+            // Drop onto root: add as root
+            gateTree.addRoot(draggedGate);
+        }
+
+        rebuildTreeView();
+        requestPreviewUpdate();
+    }
+
+    private boolean insertAfterGate(List<GateNode> nodes, GateNode target, GateNode toInsert) {
+        for (GateNode node : nodes) {
+            for (Branch branch : node.getBranches()) {
+                int idx = branch.getChildren().indexOf(target);
+                if (idx >= 0) {
+                    branch.getChildren().add(idx + 1, toInsert);
+                    return true;
+                }
+                if (insertAfterGate(branch.getChildren(), target, toInsert)) return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isDescendant(TreeItem<Object> ancestor, TreeItem<Object> item) {
+        TreeItem<Object> current = item;
+        while (current != null) {
+            if (current == ancestor) return true;
+            current = current.getParent();
+        }
+        return false;
+    }
+
+    // --- Undo / Redo ---
+
+    private void pushUndo() {
+        undoStack.push(gateTree.deepCopy());
+        if (undoStack.size() > MAX_UNDO) undoStack.removeLast();
+        redoStack.clear();
+    }
+
+    private void pushUndoCoalesced() {
+        long now = System.currentTimeMillis();
+        if (now - lastUndoPushTime > 500) {
+            pushUndo();
+            lastUndoPushTime = now;
+        }
+    }
+
+    private void undo() {
+        if (undoStack.isEmpty()) return;
+        redoStack.push(gateTree.deepCopy());
+        gateTree = undoStack.pop();
+        afterUndoRedo();
+    }
+
+    private void redo() {
+        if (redoStack.isEmpty()) return;
+        undoStack.push(gateTree.deepCopy());
+        gateTree = redoStack.pop();
+        afterUndoRedo();
+    }
+
+    private void afterUndoRedo() {
+        lastUndoPushTime = 0;
+        qualityFilterPane.setFilter(gateTree.getQualityFilter());
+        qualityFilterPane.setOnFilterChanged(filter -> onQualityFilterChanged());
+        editorPane.setGateNode(null);
+        rebuildTreeView();
+        requestPreviewUpdate();
     }
 
     /**

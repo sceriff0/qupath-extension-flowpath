@@ -17,6 +17,9 @@ dependencies {
     shadow(libs.qupath.fxtras)
     testImplementation(libs.bundles.qupath)
     testImplementation(libs.junit)
+    testImplementation("org.openjfx:javafx-base:25.0.2")
+    testImplementation("org.openjfx:javafx-graphics:25.0.2")
+    testImplementation("org.openjfx:javafx-controls:25.0.2")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 

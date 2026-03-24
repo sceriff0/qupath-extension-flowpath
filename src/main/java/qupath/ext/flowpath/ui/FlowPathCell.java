@@ -4,6 +4,9 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Label;
 import javafx.scene.control.TreeCell;
+import javafx.scene.control.TreeItem;
+import javafx.scene.input.ClipboardContent;
+import javafx.scene.input.TransferMode;
 import javafx.scene.layout.Background;
 import javafx.scene.layout.BackgroundFill;
 import javafx.scene.layout.CornerRadii;
@@ -18,6 +21,8 @@ import qupath.ext.flowpath.model.ColorUtils;
 import qupath.ext.flowpath.model.GateNode;
 import qupath.ext.flowpath.model.QuadrantGate;
 
+import java.util.function.BiConsumer;
+
 /**
  * Custom TreeCell for rendering gate tree items with a polished dark-theme design.
  * <p>
@@ -28,12 +33,20 @@ import qupath.ext.flowpath.model.QuadrantGate;
 public class FlowPathCell extends TreeCell<Object> {
 
     private static final Color GATE_BAR_COLOR = Color.web("#3a4a5a");
+    private static final Color DROP_HIGHLIGHT_COLOR = Color.web("#ffcc00");
     private static final CornerRadii BAR_RADII = new CornerRadii(6);
     private static final CornerRadii PILL_RADII = new CornerRadii(10);
     private static final Insets BAR_PADDING = new Insets(5, 10, 5, 10);
     private static final Insets PILL_PADDING = new Insets(2, 10, 2, 10);
     private static final Insets CELL_PADDING = new Insets(2, 0, 2, 0);
     private static final String STAR = "\u2605";
+
+    /** Callback: (draggedGateTreeItem, dropTargetTreeItem) */
+    private BiConsumer<TreeItem<Object>, TreeItem<Object>> onGateDrop;
+
+    public void setOnGateDrop(BiConsumer<TreeItem<Object>, TreeItem<Object>> callback) {
+        this.onGateDrop = callback;
+    }
 
     /**
      * Wrapper for a branch of a gate (generic — works for any gate type).
@@ -75,6 +88,7 @@ public class FlowPathCell extends TreeCell<Object> {
             setGraphic(null);
             setBackground(Background.EMPTY);
             setPadding(Insets.EMPTY);
+            clearDragHandlers();
             return;
         }
 
@@ -90,6 +104,61 @@ public class FlowPathCell extends TreeCell<Object> {
             setText(item.toString());
             setGraphic(null);
         }
+
+        setupDragHandlers(item);
+    }
+
+    // ---- Drag-and-drop support ----
+
+    private void setupDragHandlers(Object item) {
+        // Only gate nodes can be dragged
+        if (item instanceof GateNode) {
+            setOnDragDetected(event -> {
+                var db = startDragAndDrop(TransferMode.MOVE);
+                ClipboardContent content = new ClipboardContent();
+                content.putString("GATE_DND");
+                db.setContent(content);
+                event.consume();
+            });
+        } else {
+            setOnDragDetected(null);
+        }
+
+        // All non-empty cells can be drop targets
+        setOnDragOver(event -> {
+            if (event.getGestureSource() != this && event.getDragboard().hasString()
+                    && "GATE_DND".equals(event.getDragboard().getString())) {
+                event.acceptTransferModes(TransferMode.MOVE);
+            }
+            event.consume();
+        });
+
+        setOnDragEntered(event -> {
+            if (event.getGestureSource() != this && event.getDragboard().hasString()
+                    && "GATE_DND".equals(event.getDragboard().getString())) {
+                setStyle("-fx-border-color: #ffcc00; -fx-border-width: 0 0 2 0;");
+            }
+        });
+
+        setOnDragExited(event -> {
+            setStyle("");
+        });
+
+        setOnDragDropped(event -> {
+            if (onGateDrop != null && event.getGestureSource() instanceof FlowPathCell source) {
+                onGateDrop.accept(source.getTreeItem(), getTreeItem());
+            }
+            event.setDropCompleted(true);
+            event.consume();
+        });
+    }
+
+    private void clearDragHandlers() {
+        setOnDragDetected(null);
+        setOnDragOver(null);
+        setOnDragEntered(null);
+        setOnDragExited(null);
+        setOnDragDropped(null);
     }
 
     // ---- Gate node: full-width colored bar ------------------------------------------------

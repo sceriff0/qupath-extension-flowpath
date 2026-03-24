@@ -19,6 +19,7 @@ import qupath.ext.flowpath.model.PolygonGate;
 import qupath.ext.flowpath.model.QuadrantGate;
 import qupath.ext.flowpath.model.RectangleGate;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;
@@ -399,7 +400,61 @@ public class GateEditorPane extends VBox {
                     scatter.setEllipseOverlay(eg.getCenterX(), eg.getCenterY(), eg.getRadiusX(), eg.getRadiusY());
                 }
 
-                gateSpecificArea.getChildren().addAll(info, scatter);
+                // Drawing toolbar
+                ToggleGroup toolGroup = new ToggleGroup();
+                ToggleButton polygonBtn = new ToggleButton("Polygon");
+                polygonBtn.setToggleGroup(toolGroup);
+                ToggleButton rectBtn = new ToggleButton("Rectangle");
+                rectBtn.setToggleGroup(toolGroup);
+                ToggleButton ellipseBtn = new ToggleButton("Ellipse");
+                ellipseBtn.setToggleGroup(toolGroup);
+
+                HBox drawToolbar = new HBox(4, polygonBtn, rectBtn, ellipseBtn);
+
+                // Auto-select based on gate type
+                if (node instanceof PolygonGate) polygonBtn.setSelected(true);
+                else if (node instanceof RectangleGate) rectBtn.setSelected(true);
+                else if (node instanceof EllipseGate) ellipseBtn.setSelected(true);
+
+                // Wire toolbar to drawing mode
+                toolGroup.selectedToggleProperty().addListener((obs, old, val) -> {
+                    if (val == polygonBtn) scatter.setDrawingMode(ScatterPlotCanvas.DrawingMode.POLYGON);
+                    else if (val == rectBtn) scatter.setDrawingMode(ScatterPlotCanvas.DrawingMode.RECTANGLE);
+                    else if (val == ellipseBtn) scatter.setDrawingMode(ScatterPlotCanvas.DrawingMode.ELLIPSE);
+                    else scatter.setDrawingMode(ScatterPlotCanvas.DrawingMode.NONE);
+                });
+
+                // Wire callbacks to update gate model
+                scatter.setOnPolygonDrawn(vertices -> {
+                    if (node instanceof PolygonGate pg) {
+                        pg.setVertices(new ArrayList<>(vertices));
+                        scatter.setPolygonOverlay(pg.getVertices());
+                        fireNodeChanged();
+                    }
+                });
+                scatter.setOnRectangleDrawn(bounds -> {
+                    if (node instanceof RectangleGate rg) {
+                        rg.setMinX(bounds[0]); rg.setMaxX(bounds[1]);
+                        rg.setMinY(bounds[2]); rg.setMaxY(bounds[3]);
+                        scatter.setRectangleOverlay(rg.getMinX(), rg.getMaxX(), rg.getMinY(), rg.getMaxY());
+                        fireNodeChanged();
+                    }
+                });
+                scatter.setOnEllipseDrawn(params -> {
+                    if (node instanceof EllipseGate eg) {
+                        eg.setCenterX(params[0]); eg.setCenterY(params[1]);
+                        eg.setRadiusX(params[2]); eg.setRadiusY(params[3]);
+                        scatter.setEllipseOverlay(eg.getCenterX(), eg.getCenterY(), eg.getRadiusX(), eg.getRadiusY());
+                        fireNodeChanged();
+                    }
+                });
+
+                // Set initial drawing mode based on gate type
+                if (node instanceof PolygonGate) scatter.setDrawingMode(ScatterPlotCanvas.DrawingMode.POLYGON);
+                else if (node instanceof RectangleGate) scatter.setDrawingMode(ScatterPlotCanvas.DrawingMode.RECTANGLE);
+                else if (node instanceof EllipseGate) scatter.setDrawingMode(ScatterPlotCanvas.DrawingMode.ELLIPSE);
+
+                gateSpecificArea.getChildren().addAll(info, drawToolbar, scatter);
                 return;
             }
         }

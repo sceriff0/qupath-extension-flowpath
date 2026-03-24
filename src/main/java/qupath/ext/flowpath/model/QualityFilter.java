@@ -59,4 +59,17 @@ public class QualityFilter {
         this.minSolidity = minSolidity;
     }
 
+    /**
+     * Create a deep copy of this filter with all fields copied.
+     */
+    public QualityFilter deepCopy() {
+        QualityFilter copy = new QualityFilter();
+        copy.minArea = this.minArea;
+        copy.maxArea = this.maxArea;
+        copy.minTotalIntensity = this.minTotalIntensity;
+        copy.maxEccentricity = this.maxEccentricity;
+        copy.minSolidity = this.minSolidity;
+        return copy;
+    }
+
 }
