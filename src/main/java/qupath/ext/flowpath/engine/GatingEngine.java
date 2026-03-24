@@ -5,6 +5,7 @@ import qupath.ext.flowpath.model.GateNode;
 import qupath.ext.flowpath.model.GateTree;
 import qupath.ext.flowpath.model.MarkerStats;
 import qupath.ext.flowpath.model.QualityFilter;
+import qupath.lib.objects.PathObject;
 import qupath.lib.roi.interfaces.ROI;
 
 import java.util.Arrays;
@@ -159,7 +160,9 @@ public final class GatingEngine {
             return mask;
         }
         for (int i = 0; i < n; i++) {
-            mask[i] = roi.contains(index.getCentroidX(i), index.getCentroidY(i));
+            PathObject obj = index.getObject(i);
+            ROI cellRoi = (obj != null) ? obj.getROI() : null;
+            mask[i] = (cellRoi != null) && roi.contains(cellRoi.getCentroidX(), cellRoi.getCentroidY());
         }
         return mask;
     }

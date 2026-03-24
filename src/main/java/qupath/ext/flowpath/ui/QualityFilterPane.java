@@ -2,7 +2,6 @@ package qupath.ext.flowpath.ui;
 
 import javafx.geometry.Insets;
 import javafx.scene.control.Button;
-import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TitledPane;
@@ -32,9 +31,6 @@ public class QualityFilterPane extends TitledPane {
     private final Label totalIntLabel;
     private final Label eccentLabel;
     private final Label solidLabel;
-    private final Label filteredCountLabel;
-
-    private final CheckBox hideFilteredBox;
 
     private Consumer<QualityFilter> onFilterChanged;
 
@@ -91,19 +87,6 @@ public class QualityFilterPane extends TitledPane {
         grid.add(solidLabel, 2, row);
         row++;
 
-        // Checkboxes
-        hideFilteredBox = new CheckBox("Hide filtered cells");
-        hideFilteredBox.setSelected(filter.isHideFiltered());
-        grid.add(hideFilteredBox, 0, row, 2, 1);
-        row++;
-
-
-        // Filtered count
-        filteredCountLabel = new Label("Filtered: 0 / 0 cells");
-        filteredCountLabel.setStyle("-fx-font-weight: bold; -fx-text-fill: white;");
-        grid.add(filteredCountLabel, 0, row, 3, 1);
-        row++;
-
         // Reset button
         Button resetBtn = new Button("Reset Filters");
         resetBtn.setMaxWidth(Double.MAX_VALUE);
@@ -149,11 +132,6 @@ public class QualityFilterPane extends TitledPane {
             solidLabel.setText(fmt(val.doubleValue()));
             fireChanged();
         });
-        hideFilteredBox.selectedProperty().addListener((obs, old, val) -> {
-            if (suppressEvents) return;
-            filter.setHideFiltered(val);
-            fireChanged();
-        });
     }
 
     /**
@@ -172,7 +150,6 @@ public class QualityFilterPane extends TitledPane {
         eccentLabel.setText(fmt(newFilter.getMaxEccentricity()));
         soliditySlider.setValue(newFilter.getMinSolidity());
         solidLabel.setText(fmt(newFilter.getMinSolidity()));
-        hideFilteredBox.setSelected(newFilter.isHideFiltered());
         suppressEvents = false;
     }
 
@@ -196,10 +173,6 @@ public class QualityFilterPane extends TitledPane {
         soliditySlider.setDisable(!hasSolidity);
         eccentLabel.setText(hasEccentricity ? fmt(filter.getMaxEccentricity()) : "\u2014");
         solidLabel.setText(hasSolidity ? fmt(filter.getMinSolidity()) : "\u2014");
-    }
-
-    public void setFilteredCount(int filtered, int total) {
-        filteredCountLabel.setText(String.format("Filtered: %,d / %,d cells", filtered, total));
     }
 
     public void setOnFilterChanged(Consumer<QualityFilter> callback) {

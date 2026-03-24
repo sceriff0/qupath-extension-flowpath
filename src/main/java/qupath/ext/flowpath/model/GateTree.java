@@ -7,7 +7,7 @@ public class GateTree {
 
     private List<GateNode> roots = new ArrayList<>();
     private QualityFilter qualityFilter = new QualityFilter();
-    private String roiFilterName;
+    private String roiFilterId;
 
     public GateTree() {
     }
@@ -36,12 +36,12 @@ public class GateTree {
         this.qualityFilter = qualityFilter;
     }
 
-    public String getRoiFilterName() {
-        return roiFilterName;
+    public String getRoiFilterId() {
+        return roiFilterId;
     }
 
-    public void setRoiFilterName(String roiFilterName) {
-        this.roiFilterName = roiFilterName;
+    public void setRoiFilterId(String roiFilterId) {
+        this.roiFilterId = roiFilterId;
     }
 
     /**
@@ -51,7 +51,7 @@ public class GateTree {
     public GateTree deepCopy() {
         GateTree copy = new GateTree();
         copy.qualityFilter = this.qualityFilter;
-        copy.roiFilterName = this.roiFilterName;
+        copy.roiFilterId = this.roiFilterId;
         copy.roots = new ArrayList<>();
         for (GateNode root : this.roots) {
             copy.roots.add(root.deepCopy());

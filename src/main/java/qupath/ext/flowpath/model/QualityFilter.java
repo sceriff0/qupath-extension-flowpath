@@ -7,8 +7,6 @@ public class QualityFilter {
     private double minTotalIntensity = 0;
     private double maxEccentricity = 1.0;
     private double minSolidity = 0.0;
-    private boolean hideFiltered = true;
-
 
     public QualityFilter() {
     }
@@ -59,14 +57,6 @@ public class QualityFilter {
 
     public void setMinSolidity(double minSolidity) {
         this.minSolidity = minSolidity;
-    }
-
-    public boolean isHideFiltered() {
-        return hideFiltered;
-    }
-
-    public void setHideFiltered(boolean hideFiltered) {
-        this.hideFiltered = hideFiltered;
     }
 
 }

@@ -42,8 +42,8 @@ public class FlowPathSerializer {
         JsonObject root = new JsonObject();
         root.addProperty("version", CURRENT_VERSION);
         root.add("qualityFilter", serializeQualityFilter(tree.getQualityFilter()));
-        if (tree.getRoiFilterName() != null) {
-            root.addProperty("roiFilterName", tree.getRoiFilterName());
+        if (tree.getRoiFilterId() != null) {
+            root.addProperty("roiFilterId", tree.getRoiFilterId());
         }
         root.add("gates", serializeNodeList(tree.getRoots()));
 
@@ -79,8 +79,12 @@ public class FlowPathSerializer {
             tree.setQualityFilter(deserializeQualityFilter(root.getAsJsonObject("qualityFilter")));
         }
 
-        if (root.has("roiFilterName")) {
-            tree.setRoiFilterName(root.get("roiFilterName").getAsString());
+        if (root.has("roiFilterId")) {
+            tree.setRoiFilterId(root.get("roiFilterId").getAsString());
+        } else if (root.has("roiFilterName")) {
+            // Backward compat: old files stored display name, not UUID
+            // This won't match by UUID but won't crash either
+            tree.setRoiFilterId(root.get("roiFilterName").getAsString());
         }
 
         if (root.has("gates")) {
@@ -101,7 +105,6 @@ public class FlowPathSerializer {
         obj.addProperty("minTotalIntensity", qf.getMinTotalIntensity());
         obj.addProperty("maxEccentricity", qf.getMaxEccentricity());
         obj.addProperty("minSolidity", qf.getMinSolidity());
-        obj.addProperty("hideFiltered", qf.isHideFiltered());
         return obj;
     }
 
@@ -117,8 +120,7 @@ public class FlowPathSerializer {
             qf.setMaxEccentricity(obj.get("maxEccentricity").getAsDouble());
         if (obj.has("minSolidity"))
             qf.setMinSolidity(obj.get("minSolidity").getAsDouble());
-        if (obj.has("hideFiltered"))
-            qf.setHideFiltered(obj.get("hideFiltered").getAsBoolean());
+        // "hideFiltered" silently ignored for backward compat with v1 files
         return qf;
     }
 

@@ -63,6 +63,7 @@ public class GateEditorPane extends VBox {
         channelLabel.setStyle("-fx-text-fill: white;");
         channelCombo = new ComboBox<>();
         channelCombo.setPrefWidth(200);
+        channelCombo.setTooltip(new Tooltip("Select the marker channel for this gate"));
         // Action listener wired after all fields are initialized (see bottom of constructor)
 
         HBox channelRow = new HBox(8, channelLabel, channelCombo);
@@ -72,10 +73,12 @@ public class GateEditorPane extends VBox {
         rawModeBtn = new RadioButton("Raw");
         rawModeBtn.setToggleGroup(modeGroup);
         rawModeBtn.setStyle("-fx-text-fill: white;");
+        rawModeBtn.setTooltip(new Tooltip("Compare marker raw intensity values against threshold"));
         zscoreModeBtn = new RadioButton("Z-score");
         zscoreModeBtn.setToggleGroup(modeGroup);
         zscoreModeBtn.setSelected(true);
         zscoreModeBtn.setStyle("-fx-text-fill: white;");
+        zscoreModeBtn.setTooltip(new Tooltip("Compare z-score normalized values against threshold (recommended)"));
         modeGroup.selectedToggleProperty().addListener((obs, old, val) -> {
             if (!suppressEvents && currentNode != null) {
                 currentNode.setThresholdIsZScore(zscoreModeBtn.isSelected());
@@ -141,9 +144,17 @@ public class GateEditorPane extends VBox {
         clipHighSpinner.setEditable(true);
         excludeOutliersBox = new CheckBox("Exclude outliers");
         excludeOutliersBox.setStyle("-fx-text-fill: white;");
+        excludeOutliersBox.setTooltip(new Tooltip(
+            "When enabled, cells with marker values outside the clip percentile range\n" +
+            "are classified as 'Excluded' and removed from gating and CSV export."));
 
         clipLowSpinner.valueProperty().addListener((obs, old, val) -> {
             if (!suppressEvents && currentNode != null) {
+                double clamped = Math.min(val, clipHighSpinner.getValue() - 0.5);
+                if (clamped != val) {
+                    clipLowSpinner.getValueFactory().setValue(clamped);
+                    return;
+                }
                 currentNode.setClipPercentileLow(val);
                 updateHistogram();
                 fireNodeChanged();
@@ -151,6 +162,11 @@ public class GateEditorPane extends VBox {
         });
         clipHighSpinner.valueProperty().addListener((obs, old, val) -> {
             if (!suppressEvents && currentNode != null) {
+                double clamped = Math.max(val, clipLowSpinner.getValue() + 0.5);
+                if (clamped != val) {
+                    clipHighSpinner.getValueFactory().setValue(clamped);
+                    return;
+                }
                 currentNode.setClipPercentileHigh(val);
                 updateHistogram();
                 fireNodeChanged();
@@ -231,10 +247,13 @@ public class GateEditorPane extends VBox {
         // Action buttons
         addToPosBtn = new Button("Add Gate to +");
         addToPosBtn.setStyle("-fx-base: #004400;");
+        addToPosBtn.setTooltip(new Tooltip("Add a child gate to the positive branch"));
         addToNegBtn = new Button("Add Gate to -");
         addToNegBtn.setStyle("-fx-base: #444444;");
+        addToNegBtn.setTooltip(new Tooltip("Add a child gate to the negative branch"));
         removeGateBtn = new Button("Remove Gate");
         removeGateBtn.setStyle("-fx-base: #440000;");
+        removeGateBtn.setTooltip(new Tooltip("Remove this gate and all its children (Del)"));
 
         addToPosBtn.setOnAction(e -> { if (onAddToPositive != null) onAddToPositive.run(); });
         addToNegBtn.setOnAction(e -> { if (onAddToNegative != null) onAddToNegative.run(); });

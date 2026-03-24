@@ -64,6 +64,33 @@ public class HistogramCanvas extends Canvas {
         return 180;
     }
 
+    @Override
+    public double minWidth(double height) {
+        return 200;
+    }
+
+    @Override
+    public double minHeight(double width) {
+        return 100;
+    }
+
+    @Override
+    public double maxWidth(double height) {
+        return Double.MAX_VALUE;
+    }
+
+    @Override
+    public double maxHeight(double width) {
+        return Double.MAX_VALUE;
+    }
+
+    @Override
+    public void resize(double width, double height) {
+        setWidth(width);
+        setHeight(height);
+        repaint();
+    }
+
     /**
      * Set histogram data with display range (clipped by percentiles).
      */

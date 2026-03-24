@@ -86,7 +86,6 @@ class FlowPathSerializerTest {
         qf.setMinTotalIntensity(100);
         qf.setMaxEccentricity(0.9);
         qf.setMinSolidity(0.5);
-        qf.setHideFiltered(false);
         tree.setQualityFilter(qf);
         tree.addRoot(new GateNode("CD45"));
 
@@ -100,7 +99,6 @@ class FlowPathSerializerTest {
         assertEquals(100, lqf.getMinTotalIntensity());
         assertEquals(0.9, lqf.getMaxEccentricity());
         assertEquals(0.5, lqf.getMinSolidity());
-        assertFalse(lqf.isHideFiltered());
     }
 
     @Test
