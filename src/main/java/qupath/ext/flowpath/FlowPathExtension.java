@@ -17,7 +17,7 @@ import qupath.lib.gui.extensions.QuPathExtension;
 public class FlowPathExtension implements QuPathExtension {
 
     private static final String NAME = "FlowPath";
-    private static final String DESCRIPTION = "Interactive tree-based cell phenotyping gating";
+    private static final String DESCRIPTION = "Interactive tree-based cell phenotyping";
 
     private Stage stage;
     private FlowPathPane gateTreePane;

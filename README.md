@@ -76,7 +76,7 @@ Excluded cells (QC-filtered or outlier-excluded) are omitted when "Exclude from 
 
 If you use this tool in your research, please cite:
 
-> FlowPath: Interactive tree-based cell phenotyping for QuPath. (2025). https://github.com/sceriff0/qupath-extension-flowpath
+> FlowPath: Interactive tree-based cell phenotyping for QuPath. (2026). https://github.com/sceriff0/qupath-extension-flowpath
 
 ## License
 

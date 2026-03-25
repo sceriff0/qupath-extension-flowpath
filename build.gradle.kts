@@ -7,7 +7,7 @@ qupathExtension {
     name = "FlowPath"
     group = "io.github.qupath"
     version = "1.0.0"
-    description = "Interactive tree-based cell phenotyping gating for multiplexed imaging"
+    description = "Interactive tree-based cell phenotyping for multiplexed imaging"
     automaticModule = "qupath.ext.flowpath"
 }
 
