@@ -133,11 +133,14 @@ public class FlowPathCell extends TreeCell<Object> {
             channelLabel.setFont(Font.font(null, FontWeight.BOLD, 13));
             channelLabel.setTextFill(Color.WHITE);
 
-            Label typeLabel = new Label("[Quadrant]");
-            typeLabel.setFont(Font.font(null, FontWeight.NORMAL, 10));
-            typeLabel.setTextFill(Color.web("#80b0d0"));
+            String threshText = qg.isThresholdIsZScore()
+                    ? String.format("X:%.2f Y:%.2f", qg.getThresholdX(), qg.getThresholdY())
+                    : String.format("X=%.2f Y=%.2f", qg.getThresholdX(), qg.getThresholdY());
+            Label threshLabel = new Label(threshText);
+            threshLabel.setFont(Font.font(null, FontWeight.NORMAL, 10));
+            threshLabel.setTextFill(Color.web("#a0b0c0"));
 
-            bar.getChildren().addAll(enabledBox, channelLabel, typeLabel);
+            bar.getChildren().addAll(enabledBox, channelLabel, threshLabel);
         } else {
             Label channelLabel = new Label(node.getChannel());
             channelLabel.setFont(Font.font(null, FontWeight.BOLD, 13));

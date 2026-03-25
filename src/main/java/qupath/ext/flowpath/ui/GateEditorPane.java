@@ -61,6 +61,7 @@ public class GateEditorPane extends VBox {
     private Runnable onAddToNegative;
     private IntConsumer onAddToBranch;
     private Runnable onRemoveGate;
+    private java.util.function.BiConsumer<GateNode, GateNode> onReplaceGate;
 
     public GateEditorPane() {
         setSpacing(8);
@@ -447,29 +448,55 @@ public class GateEditorPane extends VBox {
                     else scatter.setDrawingMode(ScatterPlotCanvas.DrawingMode.NONE);
                 });
 
-                // Wire callbacks to update gate model
+                // Wire callbacks — convert gate type if needed, then update model
+                String chXVal = chXCombo.getValue();
+                String chYVal = chYCombo.getValue();
                 scatter.setOnPolygonDrawn(vertices -> {
-                    if (node instanceof PolygonGate pg) {
-                        pg.setVertices(new ArrayList<>(vertices));
-                        scatter.setPolygonOverlay(pg.getVertices());
-                        fireNodeChanged();
+                    GateNode target = currentNode;
+                    if (!(target instanceof PolygonGate)) {
+                        PolygonGate pg = new PolygonGate(chXCombo.getValue(), chYCombo.getValue());
+                        pg.setEnabled(target.isEnabled());
+                        copySharedSettings(target, pg);
+                        if (onReplaceGate != null) onReplaceGate.accept(target, pg);
+                        target = pg;
                     }
+                    ((PolygonGate) target).setVertices(new ArrayList<>(vertices));
+                    scatter.setPolygonOverlay(((PolygonGate) target).getVertices());
+                    fireNodeChanged();
                 });
                 scatter.setOnRectangleDrawn(bounds -> {
-                    if (node instanceof RectangleGate rg) {
+                    GateNode target = currentNode;
+                    if (!(target instanceof RectangleGate)) {
+                        RectangleGate rg = new RectangleGate(chXCombo.getValue(), chYCombo.getValue(),
+                            bounds[0], bounds[1], bounds[2], bounds[3]);
+                        rg.setEnabled(target.isEnabled());
+                        copySharedSettings(target, rg);
+                        if (onReplaceGate != null) onReplaceGate.accept(target, rg);
+                        target = rg;
+                    } else {
+                        RectangleGate rg = (RectangleGate) target;
                         rg.setMinX(bounds[0]); rg.setMaxX(bounds[1]);
                         rg.setMinY(bounds[2]); rg.setMaxY(bounds[3]);
-                        scatter.setRectangleOverlay(rg.getMinX(), rg.getMaxX(), rg.getMinY(), rg.getMaxY());
-                        fireNodeChanged();
                     }
+                    scatter.setRectangleOverlay(bounds[0], bounds[1], bounds[2], bounds[3]);
+                    fireNodeChanged();
                 });
                 scatter.setOnEllipseDrawn(params -> {
-                    if (node instanceof EllipseGate eg) {
+                    GateNode target = currentNode;
+                    if (!(target instanceof EllipseGate)) {
+                        EllipseGate eg = new EllipseGate(chXCombo.getValue(), chYCombo.getValue(),
+                            params[0], params[1], params[2], params[3]);
+                        eg.setEnabled(target.isEnabled());
+                        copySharedSettings(target, eg);
+                        if (onReplaceGate != null) onReplaceGate.accept(target, eg);
+                        target = eg;
+                    } else {
+                        EllipseGate eg = (EllipseGate) target;
                         eg.setCenterX(params[0]); eg.setCenterY(params[1]);
                         eg.setRadiusX(params[2]); eg.setRadiusY(params[3]);
-                        scatter.setEllipseOverlay(eg.getCenterX(), eg.getCenterY(), eg.getRadiusX(), eg.getRadiusY());
-                        fireNodeChanged();
                     }
+                    scatter.setEllipseOverlay(params[0], params[1], params[2], params[3]);
+                    fireNodeChanged();
                 });
 
                 if (node instanceof PolygonGate) scatter.setDrawingMode(ScatterPlotCanvas.DrawingMode.POLYGON);
@@ -608,6 +635,7 @@ public class GateEditorPane extends VBox {
     public void setOnAddToNegative(Runnable callback) { this.onAddToNegative = callback; }
     public void setOnAddToBranch(IntConsumer callback) { this.onAddToBranch = callback; }
     public void setOnRemoveGate(Runnable callback) { this.onRemoveGate = callback; }
+    public void setOnReplaceGate(java.util.function.BiConsumer<GateNode, GateNode> callback) { this.onReplaceGate = callback; }
 
     public boolean isUseZScore() { return zscoreModeBtn.isSelected(); }
 
@@ -633,6 +661,16 @@ public class GateEditorPane extends VBox {
     }
 
     // ---- Internal ----
+
+    private void copySharedSettings(GateNode from, GateNode to) {
+        to.setClipPercentileLow(from.getClipPercentileLow());
+        to.setClipPercentileHigh(from.getClipPercentileHigh());
+        to.setExcludeOutliers(from.isExcludeOutliers());
+        // Copy branch children from old gate to new gate
+        for (int i = 0; i < Math.min(from.getBranches().size(), to.getBranches().size()); i++) {
+            to.getBranches().get(i).setChildren(new ArrayList<>(from.getBranches().get(i).getChildren()));
+        }
+    }
 
     private double[][] getFilteredXY(int mxIdx, int myIdx) {
         double[] allX = cellIndex.getMarkerValues(mxIdx);

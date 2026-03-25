@@ -157,6 +157,7 @@ public class FlowPathPane extends BorderPane {
         editorPane.setOnAddToNegative(this::addGateToNegative);
         editorPane.setOnAddToBranch(this::addChildGate);
         editorPane.setOnRemoveGate(this::removeSelectedGate);
+        editorPane.setOnReplaceGate(this::replaceGateNode);
 
         ScrollPane editorScroll = new ScrollPane(editorPane);
         editorScroll.setFitToWidth(true);
@@ -477,6 +478,36 @@ public class FlowPathPane extends BorderPane {
         editorPane.setGateNode(null);
         rebuildTreeView();
         requestPreviewUpdate();
+    }
+
+    private void replaceGateNode(GateNode oldNode, GateNode newNode) {
+        pushUndo();
+        // Replace in roots
+        int rootIdx = gateTree.getRoots().indexOf(oldNode);
+        if (rootIdx >= 0) {
+            gateTree.getRoots().set(rootIdx, newNode);
+        } else {
+            replaceInTree(gateTree.getRoots(), oldNode, newNode);
+        }
+        currentNode = newNode;
+        editorPane.setGateNode(newNode);
+        rebuildTreeView();
+        requestPreviewUpdate();
+    }
+
+    private GateNode currentNode; // tracks currently selected gate for replacement
+
+    private void replaceInTree(List<GateNode> nodes, GateNode oldNode, GateNode newNode) {
+        for (GateNode node : nodes) {
+            for (Branch branch : node.getBranches()) {
+                int idx = branch.getChildren().indexOf(oldNode);
+                if (idx >= 0) {
+                    branch.getChildren().set(idx, newNode);
+                    return;
+                }
+                replaceInTree(branch.getChildren(), oldNode, newNode);
+            }
+        }
     }
 
     private boolean removeFromTree(List<GateNode> nodes, GateNode target) {
