@@ -6,7 +6,10 @@ import qupath.ext.flowpath.model.CellIndex;
 import qupath.ext.flowpath.model.GateNode;
 import qupath.ext.flowpath.model.GateTree;
 import qupath.ext.flowpath.model.MarkerStats;
+import qupath.ext.flowpath.model.EllipseGate;
+import qupath.ext.flowpath.model.PolygonGate;
 import qupath.ext.flowpath.model.QuadrantGate;
+import qupath.ext.flowpath.model.RectangleGate;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -162,6 +165,23 @@ public class PhenotypeCsvExporter {
                 Map<String, String> path = new LinkedHashMap<>(currentSigns);
                 for (int c = 0; c < channels.size() && c < signPatterns[i].length; c++) {
                     path.put(channels.get(c), signPatterns[i][c]);
+                }
+                if (branch.isLeaf()) {
+                    result.put(branch.getName(), new LinkedHashMap<>(path));
+                } else {
+                    for (GateNode child : branch.getChildren()) {
+                        traceMarkerSigns(child, path, result);
+                    }
+                }
+            }
+        } else if (node instanceof PolygonGate || node instanceof RectangleGate || node instanceof EllipseGate) {
+            // 2D region gates: 2 branches (inside="+", outside="-"), 2 channels
+            String[] signs = {"+", "-"};
+            for (int i = 0; i < branches.size(); i++) {
+                Branch branch = branches.get(i);
+                Map<String, String> path = new LinkedHashMap<>(currentSigns);
+                for (String ch : channels) {
+                    path.put(ch, signs[Math.min(i, signs.length - 1)]);
                 }
                 if (branch.isLeaf()) {
                     result.put(branch.getName(), new LinkedHashMap<>(path));
