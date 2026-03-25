@@ -6,31 +6,31 @@ import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TitledPane;
 import javafx.scene.layout.GridPane;
-import javafx.scene.layout.VBox;
 import qupath.ext.flowpath.model.QualityFilter;
 
 import java.util.function.Consumer;
 
 /**
- * Quality filter panel with sliders for area, eccentricity, solidity, and total intensity.
- * Sits below the TreeView and provides global pre-gating quality control.
+ * Quality filter panel with min+max sliders for area, eccentricity, solidity,
+ * total intensity, and perimeter. Sits below the TreeView and provides global
+ * pre-gating quality control.
  */
 public class QualityFilterPane extends TitledPane {
 
     private QualityFilter filter;
     private boolean suppressEvents = false;
 
-    private final Slider areaMinSlider;
-    private final Slider areaMaxSlider;
-    private final Slider totalIntensitySlider;
-    private final Slider eccentricitySlider;
-    private final Slider soliditySlider;
+    private final Slider areaMinSlider, areaMaxSlider;
+    private final Slider eccentMinSlider, eccentMaxSlider;
+    private final Slider solidMinSlider, solidMaxSlider;
+    private final Slider totalIntMinSlider, totalIntMaxSlider;
+    private final Slider perimMinSlider, perimMaxSlider;
 
-    private final Label areaMinLabel;
-    private final Label areaMaxLabel;
-    private final Label totalIntLabel;
-    private final Label eccentLabel;
-    private final Label solidLabel;
+    private final Label areaMinLabel, areaMaxLabel;
+    private final Label eccentMinLabel, eccentMaxLabel;
+    private final Label solidMinLabel, solidMaxLabel;
+    private final Label totalIntMinLabel, totalIntMaxLabel;
+    private final Label perimMinLabel, perimMaxLabel;
 
     private Consumer<QualityFilter> onFilterChanged;
 
@@ -47,89 +47,109 @@ public class QualityFilterPane extends TitledPane {
 
         int row = 0;
 
-        // Area min
-        grid.add(new Label("Area min:"), 0, row);
+        // Area
+        grid.add(new Label("Area:"), 0, row);
         areaMinSlider = createSlider(0, 1000, filter.getMinArea());
         areaMinLabel = new Label(fmt(filter.getMinArea()));
-        grid.add(areaMinSlider, 1, row);
-        grid.add(areaMinLabel, 2, row);
-        row++;
-
-        // Area max
-        grid.add(new Label("Area max:"), 0, row);
         areaMaxSlider = createSlider(0, 50000, filter.getMaxArea() == Double.MAX_VALUE ? 50000 : filter.getMaxArea());
         areaMaxLabel = new Label(filter.getMaxArea() == Double.MAX_VALUE ? "off" : fmt(filter.getMaxArea()));
-        grid.add(areaMaxSlider, 1, row);
-        grid.add(areaMaxLabel, 2, row);
+        grid.add(areaMinSlider, 1, row);
+        grid.add(areaMinLabel, 2, row);
+        grid.add(areaMaxSlider, 3, row);
+        grid.add(areaMaxLabel, 4, row);
+        row++;
+
+        // Eccentricity
+        grid.add(new Label("Eccent:"), 0, row);
+        eccentMinSlider = createSlider(0, 1, filter.getMinEccentricity());
+        eccentMinLabel = new Label(fmt(filter.getMinEccentricity()));
+        eccentMaxSlider = createSlider(0, 1, filter.getMaxEccentricity());
+        eccentMaxLabel = new Label(filter.getMaxEccentricity() >= 1.0 ? "off" : fmt(filter.getMaxEccentricity()));
+        grid.add(eccentMinSlider, 1, row);
+        grid.add(eccentMinLabel, 2, row);
+        grid.add(eccentMaxSlider, 3, row);
+        grid.add(eccentMaxLabel, 4, row);
+        row++;
+
+        // Solidity
+        grid.add(new Label("Solidity:"), 0, row);
+        solidMinSlider = createSlider(0, 1, filter.getMinSolidity());
+        solidMinLabel = new Label(fmt(filter.getMinSolidity()));
+        solidMaxSlider = createSlider(0, 1, filter.getMaxSolidity());
+        solidMaxLabel = new Label(filter.getMaxSolidity() >= 1.0 ? "off" : fmt(filter.getMaxSolidity()));
+        grid.add(solidMinSlider, 1, row);
+        grid.add(solidMinLabel, 2, row);
+        grid.add(solidMaxSlider, 3, row);
+        grid.add(solidMaxLabel, 4, row);
         row++;
 
         // Total intensity
         grid.add(new Label("Total int:"), 0, row);
-        totalIntensitySlider = createSlider(0, 5000, filter.getMinTotalIntensity());
-        totalIntLabel = new Label(fmt(filter.getMinTotalIntensity()));
-        grid.add(totalIntensitySlider, 1, row);
-        grid.add(totalIntLabel, 2, row);
+        totalIntMinSlider = createSlider(0, 5000, filter.getMinTotalIntensity());
+        totalIntMinLabel = new Label(fmt(filter.getMinTotalIntensity()));
+        totalIntMaxSlider = createSlider(0, 50000, filter.getMaxTotalIntensity() == Double.MAX_VALUE ? 50000 : filter.getMaxTotalIntensity());
+        totalIntMaxLabel = new Label(filter.getMaxTotalIntensity() == Double.MAX_VALUE ? "off" : fmt(filter.getMaxTotalIntensity()));
+        grid.add(totalIntMinSlider, 1, row);
+        grid.add(totalIntMinLabel, 2, row);
+        grid.add(totalIntMaxSlider, 3, row);
+        grid.add(totalIntMaxLabel, 4, row);
         row++;
 
-        // Eccentricity max
-        grid.add(new Label("Eccent max:"), 0, row);
-        eccentricitySlider = createSlider(0, 1, filter.getMaxEccentricity());
-        eccentLabel = new Label(fmt(filter.getMaxEccentricity()));
-        grid.add(eccentricitySlider, 1, row);
-        grid.add(eccentLabel, 2, row);
+        // Perimeter
+        grid.add(new Label("Perim:"), 0, row);
+        perimMinSlider = createSlider(0, 1000, filter.getMinPerimeter());
+        perimMinLabel = new Label(fmt(filter.getMinPerimeter()));
+        perimMaxSlider = createSlider(0, 5000, filter.getMaxPerimeter() == Double.MAX_VALUE ? 5000 : filter.getMaxPerimeter());
+        perimMaxLabel = new Label(filter.getMaxPerimeter() == Double.MAX_VALUE ? "off" : fmt(filter.getMaxPerimeter()));
+        grid.add(perimMinSlider, 1, row);
+        grid.add(perimMinLabel, 2, row);
+        grid.add(perimMaxSlider, 3, row);
+        grid.add(perimMaxLabel, 4, row);
         row++;
 
-        // Solidity min
-        grid.add(new Label("Solidity min:"), 0, row);
-        soliditySlider = createSlider(0, 1, filter.getMinSolidity());
-        solidLabel = new Label(fmt(filter.getMinSolidity()));
-        grid.add(soliditySlider, 1, row);
-        grid.add(solidLabel, 2, row);
-        row++;
-
-        // Reset button
+        // Reset button spanning all 5 columns
         Button resetBtn = new Button("Reset Filters");
         resetBtn.setMaxWidth(Double.MAX_VALUE);
         resetBtn.setOnAction(e -> resetToDefaults());
-        grid.add(resetBtn, 0, row, 3, 1);
+        grid.add(resetBtn, 0, row, 5, 1);
 
         setContent(grid);
 
-        // Wire listeners
-        areaMinSlider.valueProperty().addListener((obs, old, val) -> {
+        // Wire all 10 listeners
+        wireMinSlider(areaMinSlider, areaMinLabel, filter::setMinArea);
+        wireMinSlider(eccentMinSlider, eccentMinLabel, filter::setMinEccentricity);
+        wireMinSlider(solidMinSlider, solidMinLabel, filter::setMinSolidity);
+        wireMinSlider(totalIntMinSlider, totalIntMinLabel, filter::setMinTotalIntensity);
+        wireMinSlider(perimMinSlider, perimMinLabel, filter::setMinPerimeter);
+        wireMaxSlider(areaMaxSlider, areaMaxLabel, filter::setMaxArea);
+        wireMaxSlider(eccentMaxSlider, eccentMaxLabel, filter::setMaxEccentricity);
+        wireMaxSlider(solidMaxSlider, solidMaxLabel, filter::setMaxSolidity);
+        wireMaxSlider(totalIntMaxSlider, totalIntMaxLabel, filter::setMaxTotalIntensity);
+        wireMaxSlider(perimMaxSlider, perimMaxLabel, filter::setMaxPerimeter);
+    }
+
+    private void wireMinSlider(Slider slider, Label label, java.util.function.DoubleConsumer setter) {
+        slider.valueProperty().addListener((obs, old, val) -> {
             if (suppressEvents) return;
-            filter.setMinArea(val.doubleValue());
-            areaMinLabel.setText(fmt(val.doubleValue()));
+            setter.accept(val.doubleValue());
+            label.setText(fmt(val.doubleValue()));
             fireChanged();
         });
-        areaMaxSlider.valueProperty().addListener((obs, old, val) -> {
+    }
+
+    private void wireMaxSlider(Slider slider, Label label, java.util.function.DoubleConsumer setter) {
+        slider.valueProperty().addListener((obs, old, val) -> {
             if (suppressEvents) return;
             double v = val.doubleValue();
-            if (v >= areaMaxSlider.getMax() - 1) {
-                filter.setMaxArea(Double.MAX_VALUE);
-                areaMaxLabel.setText("off");
+            double range = slider.getMax() - slider.getMin();
+            // "off" when slider is within 0.1% of its max (works for both [0,1] and [0,50000] ranges)
+            if (v >= slider.getMax() - range * 0.001) {
+                setter.accept(Double.MAX_VALUE);
+                label.setText("off");
             } else {
-                filter.setMaxArea(v);
-                areaMaxLabel.setText(fmt(v));
+                setter.accept(v);
+                label.setText(fmt(v));
             }
-            fireChanged();
-        });
-        totalIntensitySlider.valueProperty().addListener((obs, old, val) -> {
-            if (suppressEvents) return;
-            filter.setMinTotalIntensity(val.doubleValue());
-            totalIntLabel.setText(fmt(val.doubleValue()));
-            fireChanged();
-        });
-        eccentricitySlider.valueProperty().addListener((obs, old, val) -> {
-            if (suppressEvents) return;
-            filter.setMaxEccentricity(val.doubleValue());
-            eccentLabel.setText(fmt(val.doubleValue()));
-            fireChanged();
-        });
-        soliditySlider.valueProperty().addListener((obs, old, val) -> {
-            if (suppressEvents) return;
-            filter.setMinSolidity(val.doubleValue());
-            solidLabel.setText(fmt(val.doubleValue()));
             fireChanged();
         });
     }
@@ -140,39 +160,63 @@ public class QualityFilterPane extends TitledPane {
     public void setFilter(QualityFilter newFilter) {
         suppressEvents = true;
         this.filter = newFilter;
-        areaMinSlider.setValue(newFilter.getMinArea());
-        areaMinLabel.setText(fmt(newFilter.getMinArea()));
-        areaMaxSlider.setValue(newFilter.getMaxArea() == Double.MAX_VALUE ? areaMaxSlider.getMax() : newFilter.getMaxArea());
-        areaMaxLabel.setText(newFilter.getMaxArea() == Double.MAX_VALUE ? "off" : fmt(newFilter.getMaxArea()));
-        totalIntensitySlider.setValue(newFilter.getMinTotalIntensity());
-        totalIntLabel.setText(fmt(newFilter.getMinTotalIntensity()));
-        eccentricitySlider.setValue(newFilter.getMaxEccentricity());
-        eccentLabel.setText(fmt(newFilter.getMaxEccentricity()));
-        soliditySlider.setValue(newFilter.getMinSolidity());
-        solidLabel.setText(fmt(newFilter.getMinSolidity()));
+        syncSlider(areaMinSlider, areaMinLabel, newFilter.getMinArea(), false);
+        syncSlider(areaMaxSlider, areaMaxLabel, newFilter.getMaxArea(), true);
+        syncSlider(eccentMinSlider, eccentMinLabel, newFilter.getMinEccentricity(), false);
+        syncSlider(eccentMaxSlider, eccentMaxLabel, newFilter.getMaxEccentricity(), true);
+        syncSlider(solidMinSlider, solidMinLabel, newFilter.getMinSolidity(), false);
+        syncSlider(solidMaxSlider, solidMaxLabel, newFilter.getMaxSolidity(), true);
+        syncSlider(totalIntMinSlider, totalIntMinLabel, newFilter.getMinTotalIntensity(), false);
+        syncSlider(totalIntMaxSlider, totalIntMaxLabel, newFilter.getMaxTotalIntensity(), true);
+        syncSlider(perimMinSlider, perimMinLabel, newFilter.getMinPerimeter(), false);
+        syncSlider(perimMaxSlider, perimMaxLabel, newFilter.getMaxPerimeter(), true);
         suppressEvents = false;
+    }
+
+    private void syncSlider(Slider slider, Label label, double value, boolean isMax) {
+        if (isMax && value == Double.MAX_VALUE) {
+            slider.setValue(slider.getMax());
+            label.setText("off");
+        } else if (isMax && value >= 1.0 && slider.getMax() == 1.0) {
+            slider.setValue(slider.getMax());
+            label.setText("off");
+        } else {
+            slider.setValue(value);
+            label.setText(fmt(value));
+        }
     }
 
     /**
      * Update slider ranges based on actual data statistics.
      * Suppresses events to avoid silently corrupting filter values.
      */
-    public void updateRanges(double maxArea, double maxTotalIntensity) {
+    public void updateRanges(double maxArea, double maxTotalIntensity, double maxPerimeter) {
         suppressEvents = true;
         areaMinSlider.setMax(maxArea);
         areaMaxSlider.setMax(maxArea * 1.1);
-        totalIntensitySlider.setMax(maxTotalIntensity);
+        totalIntMinSlider.setMax(maxTotalIntensity);
+        totalIntMaxSlider.setMax(maxTotalIntensity * 1.1);
+        perimMinSlider.setMax(maxPerimeter);
+        perimMaxSlider.setMax(maxPerimeter * 1.1);
         suppressEvents = false;
     }
 
     /**
      * Enable/disable QC metric sliders based on data availability.
      */
-    public void setAvailableMetrics(boolean hasEccentricity, boolean hasSolidity) {
-        eccentricitySlider.setDisable(!hasEccentricity);
-        soliditySlider.setDisable(!hasSolidity);
-        eccentLabel.setText(hasEccentricity ? fmt(filter.getMaxEccentricity()) : "\u2014");
-        solidLabel.setText(hasSolidity ? fmt(filter.getMinSolidity()) : "\u2014");
+    public void setAvailableMetrics(boolean hasEccentricity, boolean hasSolidity, boolean hasPerimeter) {
+        eccentMinSlider.setDisable(!hasEccentricity);
+        eccentMaxSlider.setDisable(!hasEccentricity);
+        eccentMinLabel.setText(hasEccentricity ? fmt(filter.getMinEccentricity()) : "\u2014");
+        eccentMaxLabel.setText(hasEccentricity ? fmt(filter.getMaxEccentricity()) : "\u2014");
+        solidMinSlider.setDisable(!hasSolidity);
+        solidMaxSlider.setDisable(!hasSolidity);
+        solidMinLabel.setText(hasSolidity ? fmt(filter.getMinSolidity()) : "\u2014");
+        solidMaxLabel.setText(hasSolidity ? fmt(filter.getMaxSolidity()) : "\u2014");
+        perimMinSlider.setDisable(!hasPerimeter);
+        perimMaxSlider.setDisable(!hasPerimeter);
+        perimMinLabel.setText(hasPerimeter ? fmt(filter.getMinPerimeter()) : "\u2014");
+        perimMaxLabel.setText(hasPerimeter ? fmt(filter.getMaxPerimeter()) : "\u2014");
     }
 
     public void setOnFilterChanged(Consumer<QualityFilter> callback) {
@@ -188,29 +232,39 @@ public class QualityFilterPane extends TitledPane {
      */
     public void resetToDefaults() {
         suppressEvents = true;
-        areaMinSlider.setValue(0);
-        areaMinLabel.setText(fmt(0));
+        resetSlider(areaMinSlider, areaMinLabel, 0, false);
         filter.setMinArea(0);
-
-        areaMaxSlider.setValue(areaMaxSlider.getMax());
-        areaMaxLabel.setText("off");
+        resetSlider(areaMaxSlider, areaMaxLabel, areaMaxSlider.getMax(), true);
         filter.setMaxArea(Double.MAX_VALUE);
 
-        totalIntensitySlider.setValue(0);
-        totalIntLabel.setText(fmt(0));
-        filter.setMinTotalIntensity(0);
-
-        eccentricitySlider.setValue(1.0);
-        eccentLabel.setText(fmt(1.0));
+        resetSlider(eccentMinSlider, eccentMinLabel, 0, false);
+        filter.setMinEccentricity(0);
+        resetSlider(eccentMaxSlider, eccentMaxLabel, 1.0, true);
         filter.setMaxEccentricity(1.0);
 
-        soliditySlider.setValue(0.0);
-        solidLabel.setText(fmt(0.0));
-        filter.setMinSolidity(0.0);
+        resetSlider(solidMinSlider, solidMinLabel, 0, false);
+        filter.setMinSolidity(0);
+        resetSlider(solidMaxSlider, solidMaxLabel, 1.0, true);
+        filter.setMaxSolidity(1.0);
+
+        resetSlider(totalIntMinSlider, totalIntMinLabel, 0, false);
+        filter.setMinTotalIntensity(0);
+        resetSlider(totalIntMaxSlider, totalIntMaxLabel, totalIntMaxSlider.getMax(), true);
+        filter.setMaxTotalIntensity(Double.MAX_VALUE);
+
+        resetSlider(perimMinSlider, perimMinLabel, 0, false);
+        filter.setMinPerimeter(0);
+        resetSlider(perimMaxSlider, perimMaxLabel, perimMaxSlider.getMax(), true);
+        filter.setMaxPerimeter(Double.MAX_VALUE);
 
         suppressEvents = false;
         updateActiveIndicator();
         fireChanged();
+    }
+
+    private void resetSlider(Slider slider, Label label, double value, boolean showOff) {
+        slider.setValue(value);
+        label.setText(showOff ? "off" : fmt(value));
     }
 
     /**
@@ -219,9 +273,14 @@ public class QualityFilterPane extends TitledPane {
     private void updateActiveIndicator() {
         boolean active = filter.getMinArea() > 0
                 || filter.getMaxArea() != Double.MAX_VALUE
-                || filter.getMinTotalIntensity() > 0
+                || filter.getMinEccentricity() > 0.0
                 || filter.getMaxEccentricity() < 1.0
-                || filter.getMinSolidity() > 0.0;
+                || filter.getMinSolidity() > 0.0
+                || filter.getMaxSolidity() < 1.0
+                || filter.getMinTotalIntensity() > 0
+                || filter.getMaxTotalIntensity() != Double.MAX_VALUE
+                || filter.getMinPerimeter() > 0
+                || filter.getMaxPerimeter() != Double.MAX_VALUE;
         if (active) {
             setText("Quality Filter (active)");
             setStyle("-fx-text-fill: #ff9900;");

@@ -274,16 +274,21 @@ public class FlowPathPane extends BorderPane {
         editorPane.setMarkerStats(markerStats);
 
         // Update quality filter ranges + check which QC metrics have data
-        double maxArea = 0, maxTotalInt = 0;
-        boolean hasEccentricity = false, hasSolidity = false;
+        double maxArea = 0, maxTotalInt = 0, maxPerim = 0;
+        boolean hasEccentricity = false, hasSolidity = false, hasPerimeter = false;
         for (int i = 0; i < cellIndex.size(); i++) {
             maxArea = Math.max(maxArea, cellIndex.getArea(i));
             maxTotalInt = Math.max(maxTotalInt, cellIndex.getTotalIntensity(i));
+            double perim = cellIndex.getPerimeter(i);
+            if (!Double.isNaN(perim)) {
+                maxPerim = Math.max(maxPerim, perim);
+                if (perim > 0) hasPerimeter = true;
+            }
             if (cellIndex.getEccentricity(i) > 0) hasEccentricity = true;
             if (cellIndex.getSolidity(i) > 0 && cellIndex.getSolidity(i) < 1.0) hasSolidity = true;
         }
-        qualityFilterPane.updateRanges(maxArea, maxTotalInt);
-        qualityFilterPane.setAvailableMetrics(hasEccentricity, hasSolidity);
+        qualityFilterPane.updateRanges(maxArea, maxTotalInt, maxPerim);
+        qualityFilterPane.setAvailableMetrics(hasEccentricity, hasSolidity, hasPerimeter);
 
         // Setup preview service
         previewService.setCellIndex(cellIndex);
