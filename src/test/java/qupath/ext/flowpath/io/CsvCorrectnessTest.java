@@ -123,6 +123,32 @@ class CsvCorrectnessTest {
         assertEquals("9.9000", csv.val(1, "CD3_raw"));
     }
 
+    @Test
+    void ungatedMarkersAppearInCsv() throws IOException {
+        // 3 markers but only CD45 is gated — CD3 and CD8 should still appear as raw+zscore columns
+        List<String> markers = List.of("CD45", "CD3", "CD8");
+        double[][] values = { {2, 8}, {3, 7}, {4, 6} };
+        CellIndex index = buildIndex(markers, values, null);
+        MarkerStats stats = MarkerStats.compute(index, allTrueMask(2));
+
+        GateNode gate = new GateNode("CD45", 5.0);
+        gate.setThresholdIsZScore(false);
+        GateTree tree = new GateTree();
+        tree.setQualityFilter(null);
+        tree.addRoot(gate);
+
+        CsvResult csv = run(tree, index, stats, false, "ungated.csv");
+
+        // All 3 markers should have raw columns
+        assertEquals("2.0000", csv.val(0, "CD45_raw"));
+        assertEquals("3.0000", csv.val(0, "CD3_raw"));
+        assertEquals("4.0000", csv.val(0, "CD8_raw"));
+        // Sign columns: only CD45 has signs (gated), CD3 and CD8 should be empty
+        assertEquals("-", csv.val(0, "CD45_sign"));
+        assertEquals("", csv.val(0, "CD3_sign"));
+        assertEquals("", csv.val(0, "CD8_sign"));
+    }
+
     // ========== Gap 10 cont: Z-score values verified ==========
 
     @Test

@@ -47,8 +47,8 @@ public class PhenotypeCsvExporter {
     public static void export(File file, CellIndex index, GatingEngine.AssignmentResult result,
                               GateTree tree, MarkerStats stats) throws IOException {
 
-        // 1. Collect all unique marker channels in the gate tree (preserving order)
-        List<String> markerColumns = collectMarkerChannels(tree);
+        // 1. Collect all marker channels: gated ones first, then remaining from index
+        List<String> markerColumns = collectAllMarkers(tree, index);
 
         // 2. Build a lookup from phenotype name -> marker sign map
         Map<String, Map<String, String>> phenotypeMarkerSigns = new LinkedHashMap<>();
@@ -123,13 +123,17 @@ public class PhenotypeCsvExporter {
     }
 
     /**
-     * Collect all unique marker channel names used across the gate tree,
-     * preserving the order of first encounter (depth-first).
+     * Collect all marker channels: gated ones first (depth-first order),
+     * then any remaining markers from the cell index that are not in the tree.
      */
-    private static List<String> collectMarkerChannels(GateTree tree) {
+    private static List<String> collectAllMarkers(GateTree tree, CellIndex index) {
         Set<String> seen = new LinkedHashSet<>();
         for (GateNode root : tree.getRoots()) {
             collectChannelsRecursive(root, seen);
+        }
+        // Add all remaining markers from the index
+        for (String m : index.getMarkerNames()) {
+            seen.add(m);
         }
         return new ArrayList<>(seen);
     }
