@@ -82,7 +82,11 @@ public class FlowPathPane extends BorderPane {
 
         // --- Left side: TreeView + Quality Filter ---
         treeView = new TreeView<>();
-        treeView.setCellFactory(tv -> new FlowPathCell());
+        treeView.setCellFactory(tv -> {
+            FlowPathCell cell = new FlowPathCell();
+            cell.setOnEnabledToggled(this::onGateEnabledToggled);
+            return cell;
+        });
         treeView.setShowRoot(false);
         treeView.setRoot(new TreeItem<>("Root"));
         treeView.getSelectionModel().selectedItemProperty().addListener((obs, old, sel) -> onTreeSelectionChanged(sel));
@@ -595,6 +599,12 @@ public class FlowPathPane extends BorderPane {
         pushUndoCoalesced();
         previewService.setUseZScore(editorPane.isUseZScore());
         requestPreviewUpdate();
+    }
+
+    private void onGateEnabledToggled(GateNode node) {
+        pushUndoCoalesced();
+        requestPreviewUpdate();
+        editorPane.syncEnabled(node);
     }
 
     private void onQualityFilterChanged() {

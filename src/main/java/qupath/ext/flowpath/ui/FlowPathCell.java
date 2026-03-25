@@ -2,6 +2,7 @@ package qupath.ext.flowpath.ui;
 
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.control.CheckBox;
 import javafx.scene.control.Label;
 import javafx.scene.control.TreeCell;
 import javafx.scene.control.TreeItem;
@@ -18,6 +19,8 @@ import qupath.ext.flowpath.model.Branch;
 import qupath.ext.flowpath.model.ColorUtils;
 import qupath.ext.flowpath.model.GateNode;
 import qupath.ext.flowpath.model.QuadrantGate;
+
+import java.util.function.Consumer;
 
 /**
  * Custom TreeCell for rendering gate tree items with a polished dark-theme design.
@@ -36,6 +39,12 @@ public class FlowPathCell extends TreeCell<Object> {
     private static final Insets PILL_PADDING = new Insets(2, 10, 2, 10);
     private static final Insets CELL_PADDING = new Insets(2, 0, 2, 0);
     private static final String STAR = "\u2605";
+
+    private Consumer<GateNode> onEnabledToggled;
+
+    public void setOnEnabledToggled(Consumer<GateNode> callback) {
+        this.onEnabledToggled = callback;
+    }
 
     /**
      * Wrapper for a branch of a gate (generic — works for any gate type).
@@ -98,7 +107,7 @@ public class FlowPathCell extends TreeCell<Object> {
     // ---- Gate node: full-width colored bar ------------------------------------------------
 
     private HBox buildGateNodeGraphic(GateNode node) {
-        HBox bar = new HBox(8);
+        HBox bar = new HBox(6);
         bar.setAlignment(Pos.CENTER_LEFT);
         bar.setPadding(BAR_PADDING);
         Color barColor = node.isEnabled() ? GATE_BAR_COLOR : GATE_BAR_DISABLED_COLOR;
@@ -107,8 +116,19 @@ public class FlowPathCell extends TreeCell<Object> {
         bar.setOpacity(node.isEnabled() ? 1.0 : 0.5);
         HBox.setHgrow(bar, Priority.ALWAYS);
 
+        // Enabled checkbox — directly in the tree row
+        CheckBox enabledBox = new CheckBox();
+        enabledBox.setSelected(node.isEnabled());
+        enabledBox.selectedProperty().addListener((obs, old, val) -> {
+            node.setEnabled(val);
+            // Update visual immediately
+            bar.setOpacity(val ? 1.0 : 0.5);
+            bar.setBackground(new Background(new BackgroundFill(
+                val ? GATE_BAR_COLOR : GATE_BAR_DISABLED_COLOR, BAR_RADII, Insets.EMPTY)));
+            if (onEnabledToggled != null) onEnabledToggled.accept(node);
+        });
+
         if (node instanceof QuadrantGate qg) {
-            // Quadrant gate: show both channels
             Label channelLabel = new Label(qg.getChannelX() + " / " + qg.getChannelY());
             channelLabel.setFont(Font.font(null, FontWeight.BOLD, 13));
             channelLabel.setTextFill(Color.WHITE);
@@ -117,9 +137,8 @@ public class FlowPathCell extends TreeCell<Object> {
             typeLabel.setFont(Font.font(null, FontWeight.NORMAL, 10));
             typeLabel.setTextFill(Color.web("#80b0d0"));
 
-            bar.getChildren().addAll(channelLabel, typeLabel);
+            bar.getChildren().addAll(enabledBox, channelLabel, typeLabel);
         } else {
-            // Threshold gate
             Label channelLabel = new Label(node.getChannel());
             channelLabel.setFont(Font.font(null, FontWeight.BOLD, 13));
             channelLabel.setTextFill(Color.WHITE);
@@ -131,7 +150,7 @@ public class FlowPathCell extends TreeCell<Object> {
             thresholdLabel.setFont(Font.font(null, FontWeight.NORMAL, 11));
             thresholdLabel.setTextFill(Color.web("#a0b0c0"));
 
-            bar.getChildren().addAll(channelLabel, thresholdLabel);
+            bar.getChildren().addAll(enabledBox, channelLabel, thresholdLabel);
         }
 
         return bar;

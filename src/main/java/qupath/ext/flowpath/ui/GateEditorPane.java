@@ -673,6 +673,13 @@ public class GateEditorPane extends VBox {
         this.roiMask = mask;
         if (currentNode != null) updateHistogram();
     }
+    public void syncEnabled(GateNode node) {
+        if (node == currentNode) {
+            suppressEvents = true;
+            enabledCheckBox.setSelected(node.isEnabled());
+            suppressEvents = false;
+        }
+    }
     public void setOnNodeChanged(Consumer<GateNode> callback) { this.onNodeChanged = callback; }
     public void setOnAddToPositive(Runnable callback) { this.onAddToPositive = callback; }
     public void setOnAddToNegative(Runnable callback) { this.onAddToNegative = callback; }
