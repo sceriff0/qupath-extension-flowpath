@@ -191,15 +191,8 @@ public class FlowPathPane extends BorderPane {
         exportBtn.setOnAction(e -> exportCsv());
         exportBtn.setTooltip(new Tooltip("Export phenotype assignments to CSV (Ctrl+E)"));
 
-        Button saveTemplateBtn = new Button("Save Template");
-        saveTemplateBtn.setOnAction(e -> saveTemplate());
-        saveTemplateBtn.setTooltip(new Tooltip("Save gate tree as reusable template"));
-        Button loadTemplateBtn = new Button("Load Template");
-        loadTemplateBtn.setOnAction(e -> loadTemplate());
-        loadTemplateBtn.setTooltip(new Tooltip("Load a gate tree template"));
-
         HBox toolbar = new HBox(8, saveBtn, loadBtn, new Separator(Orientation.VERTICAL),
-            exportBtn, new Separator(Orientation.VERTICAL), saveTemplateBtn, loadTemplateBtn);
+            exportBtn);
         toolbar.setPadding(new Insets(6));
 
         HBox statusRow = new HBox(6, spinner, statusBar);
@@ -800,44 +793,6 @@ public class FlowPathPane extends BorderPane {
         item.setExpanded(false);
         for (TreeItem<?> child : item.getChildren()) {
             collapseAll(child);
-        }
-    }
-
-    // --- Templates ---
-
-    private void saveTemplate() {
-        if (gateTree.getRoots().isEmpty()) {
-            Dialogs.showWarningNotification("FlowPath", "No gates to save as template.");
-            return;
-        }
-        File file = Dialogs.promptToSaveFile("Save Template", null, "template.json", "JSON", ".json");
-        if (file == null) return;
-        try {
-            // Save just the gate tree (no QF or ROI filter)
-            GateTree templateTree = new GateTree();
-            templateTree.setRoots(new java.util.ArrayList<>(gateTree.getRoots()));
-            FlowPathSerializer.save(templateTree, file);
-            Dialogs.showInfoNotification("FlowPath", "Template saved to " + file.getName());
-        } catch (Exception ex) {
-            Dialogs.showErrorMessage("Save Template Error", ex.getMessage());
-        }
-    }
-
-    private void loadTemplate() {
-        File file = Dialogs.promptForFile("Load Template", null, "JSON", ".json");
-        if (file == null) return;
-        try {
-            pushUndo();
-            GateTree templateTree = FlowPathSerializer.load(file);
-            // Merge template gates into current tree (add as roots)
-            for (GateNode root : templateTree.getRoots()) {
-                gateTree.addRoot(root);
-            }
-            rebuildTreeView();
-            requestPreviewUpdate();
-            Dialogs.showInfoNotification("FlowPath", "Template loaded from " + file.getName());
-        } catch (Exception ex) {
-            Dialogs.showErrorMessage("Load Template Error", ex.getMessage());
         }
     }
 
