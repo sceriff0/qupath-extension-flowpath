@@ -55,6 +55,7 @@ public class GateEditorPane extends VBox {
     private GateNode currentNode;
     private CellIndex cellIndex;
     private MarkerStats markerStats;
+    private boolean[] roiMask;
     private boolean suppressEvents = false;
 
     private Consumer<GateNode> onNodeChanged;
@@ -366,6 +367,30 @@ public class GateEditorPane extends VBox {
             createSectionHeader("Threshold X"), new HBox(8, sliderX, valX),
             createSectionHeader("Threshold Y"), new HBox(8, sliderY, valY)
         );
+
+        // Add scatter plot if data is available
+        if (cellIndex != null && gate.getChannelX() != null && gate.getChannelY() != null) {
+            int mxIdx = cellIndex.getMarkerIndex(gate.getChannelX());
+            int myIdx = cellIndex.getMarkerIndex(gate.getChannelY());
+            if (mxIdx >= 0 && myIdx >= 0) {
+                double[][] filtered = getFilteredXY(mxIdx, myIdx);
+                ScatterPlotCanvas scatter = new ScatterPlotCanvas();
+                scatter.setData(filtered[0], filtered[1], gate.getChannelX(), gate.getChannelY());
+                gateSpecificArea.getChildren().addAll(createSectionHeader("Scatter Plot"), scatter);
+
+                // Refresh scatter when channels change
+                Runnable refreshScatter = () -> {
+                    int mx = cellIndex.getMarkerIndex(gate.getChannelX());
+                    int my = cellIndex.getMarkerIndex(gate.getChannelY());
+                    if (mx >= 0 && my >= 0) {
+                        double[][] f = getFilteredXY(mx, my);
+                        scatter.setData(f[0], f[1], gate.getChannelX(), gate.getChannelY());
+                    }
+                };
+                chXCombo.setOnAction(e -> { if (!suppressEvents) { gate.setChannelX(chXCombo.getValue()); refreshScatter.run(); fireNodeChanged(); }});
+                chYCombo.setOnAction(e -> { if (!suppressEvents) { gate.setChannelY(chYCombo.getValue()); refreshScatter.run(); fireNodeChanged(); }});
+            }
+        }
     }
 
     private void buildBooleanEditor(BooleanGate gate) {
@@ -394,19 +419,50 @@ public class GateEditorPane extends VBox {
     }
 
     private void build2DEditor(GateNode node) {
-        String chX = node.getChannels().isEmpty() ? "" : node.getChannels().get(0);
-        String chY = node.getChannels().size() > 1 ? node.getChannels().get(1) : "";
+        // Channel pickers
+        Label chXLabel = new Label("Channel X:");
+        chXLabel.setStyle("-fx-text-fill: white;");
+        ComboBox<String> chXCombo = new ComboBox<>(channelCombo.getItems());
+        chXCombo.setPrefWidth(150);
+        Label chYLabel = new Label("Channel Y:");
+        chYLabel.setStyle("-fx-text-fill: white;");
+        ComboBox<String> chYCombo = new ComboBox<>(channelCombo.getItems());
+        chYCombo.setPrefWidth(150);
 
-        Label info = new Label("2D " + node.getGateType() + " gate on " + chX + " vs " + chY);
-        info.setStyle("-fx-text-fill: white;");
+        // Read current channels from the node
+        if (node instanceof PolygonGate pg) { chXCombo.setValue(pg.getChannelX()); chYCombo.setValue(pg.getChannelY()); }
+        else if (node instanceof RectangleGate rg) { chXCombo.setValue(rg.getChannelX()); chYCombo.setValue(rg.getChannelY()); }
+        else if (node instanceof EllipseGate eg) { chXCombo.setValue(eg.getChannelX()); chYCombo.setValue(eg.getChannelY()); }
 
-        // Show scatter plot if we have data
-        if (cellIndex != null && !chX.isEmpty() && !chY.isEmpty()) {
+        // Drawing toolbar — shape picker
+        ToggleGroup toolGroup = new ToggleGroup();
+        ToggleButton polygonBtn = new ToggleButton("Polygon");
+        polygonBtn.setToggleGroup(toolGroup);
+        ToggleButton rectBtn = new ToggleButton("Rectangle");
+        rectBtn.setToggleGroup(toolGroup);
+        ToggleButton ellipseBtn = new ToggleButton("Ellipse");
+        ellipseBtn.setToggleGroup(toolGroup);
+        HBox drawToolbar = new HBox(4, polygonBtn, rectBtn, ellipseBtn);
+
+        if (node instanceof PolygonGate) polygonBtn.setSelected(true);
+        else if (node instanceof RectangleGate) rectBtn.setSelected(true);
+        else if (node instanceof EllipseGate) ellipseBtn.setSelected(true);
+
+        gateSpecificArea.getChildren().addAll(
+            new HBox(8, chXLabel, chXCombo), new HBox(8, chYLabel, chYCombo),
+            createSectionHeader("Shape"), drawToolbar
+        );
+
+        // Scatter plot if data available
+        String chX = chXCombo.getValue();
+        String chY = chYCombo.getValue();
+        if (cellIndex != null && chX != null && chY != null) {
             int mxIdx = cellIndex.getMarkerIndex(chX);
             int myIdx = cellIndex.getMarkerIndex(chY);
             if (mxIdx >= 0 && myIdx >= 0) {
                 ScatterPlotCanvas scatter = new ScatterPlotCanvas();
-                scatter.setData(cellIndex.getMarkerValues(mxIdx), cellIndex.getMarkerValues(myIdx), chX, chY);
+                double[][] filtered = getFilteredXY(mxIdx, myIdx);
+                scatter.setData(filtered[0], filtered[1], chX, chY);
 
                 if (node instanceof PolygonGate pg && pg.getVertices().size() >= 3) {
                     scatter.setPolygonOverlay(pg.getVertices());
@@ -415,22 +471,6 @@ public class GateEditorPane extends VBox {
                 } else if (node instanceof EllipseGate eg) {
                     scatter.setEllipseOverlay(eg.getCenterX(), eg.getCenterY(), eg.getRadiusX(), eg.getRadiusY());
                 }
-
-                // Drawing toolbar
-                ToggleGroup toolGroup = new ToggleGroup();
-                ToggleButton polygonBtn = new ToggleButton("Polygon");
-                polygonBtn.setToggleGroup(toolGroup);
-                ToggleButton rectBtn = new ToggleButton("Rectangle");
-                rectBtn.setToggleGroup(toolGroup);
-                ToggleButton ellipseBtn = new ToggleButton("Ellipse");
-                ellipseBtn.setToggleGroup(toolGroup);
-
-                HBox drawToolbar = new HBox(4, polygonBtn, rectBtn, ellipseBtn);
-
-                // Auto-select based on gate type
-                if (node instanceof PolygonGate) polygonBtn.setSelected(true);
-                else if (node instanceof RectangleGate) rectBtn.setSelected(true);
-                else if (node instanceof EllipseGate) ellipseBtn.setSelected(true);
 
                 // Wire toolbar to drawing mode
                 toolGroup.selectedToggleProperty().addListener((obs, old, val) -> {
@@ -465,19 +505,35 @@ public class GateEditorPane extends VBox {
                     }
                 });
 
-                // Set initial drawing mode based on gate type
                 if (node instanceof PolygonGate) scatter.setDrawingMode(ScatterPlotCanvas.DrawingMode.POLYGON);
                 else if (node instanceof RectangleGate) scatter.setDrawingMode(ScatterPlotCanvas.DrawingMode.RECTANGLE);
                 else if (node instanceof EllipseGate) scatter.setDrawingMode(ScatterPlotCanvas.DrawingMode.ELLIPSE);
 
-                gateSpecificArea.getChildren().addAll(info, drawToolbar, scatter);
+                gateSpecificArea.getChildren().add(scatter);
+
+                // Channel change: update scatter data and rebuild editor to re-wire channels on the gate
+                Runnable refreshScatter = () -> {
+                    String cx = chXCombo.getValue(), cy = chYCombo.getValue();
+                    if (cx == null || cy == null) return;
+                    if (node instanceof PolygonGate pg) { pg.setChannelX(cx); pg.setChannelY(cy); }
+                    else if (node instanceof RectangleGate rg) { rg.setChannelX(cx); rg.setChannelY(cy); }
+                    else if (node instanceof EllipseGate eg2) { eg2.setChannelX(cx); eg2.setChannelY(cy); }
+                    int mx = cellIndex.getMarkerIndex(cx), my = cellIndex.getMarkerIndex(cy);
+                    if (mx >= 0 && my >= 0) {
+                        double[][] f = getFilteredXY(mx, my);
+                        scatter.setData(f[0], f[1], cx, cy);
+                    }
+                    fireNodeChanged();
+                };
+                chXCombo.setOnAction(e -> { if (!suppressEvents) refreshScatter.run(); });
+                chYCombo.setOnAction(e -> { if (!suppressEvents) refreshScatter.run(); });
                 return;
             }
         }
 
         Label noData = new Label("Load an image to see the scatter plot");
         noData.setStyle("-fx-text-fill: #888888;");
-        gateSpecificArea.getChildren().addAll(info, noData);
+        gateSpecificArea.getChildren().add(noData);
     }
 
     // ---- Branch names/colors editor (generic for any gate type) ----
@@ -574,7 +630,14 @@ public class GateEditorPane extends VBox {
 
     public void setChannelNames(List<String> names) { channelCombo.getItems().setAll(names); }
     public void setCellIndex(CellIndex index) { this.cellIndex = index; }
-    public void setMarkerStats(MarkerStats stats) { this.markerStats = stats; }
+    public void setMarkerStats(MarkerStats stats) {
+        this.markerStats = stats;
+        if (currentNode != null) updateHistogram();
+    }
+    public void setRoiMask(boolean[] mask) {
+        this.roiMask = mask;
+        if (currentNode != null) updateHistogram();
+    }
     public void setOnNodeChanged(Consumer<GateNode> callback) { this.onNodeChanged = callback; }
     public void setOnAddToPositive(Runnable callback) { this.onAddToPositive = callback; }
     public void setOnAddToNegative(Runnable callback) { this.onAddToNegative = callback; }
@@ -606,6 +669,20 @@ public class GateEditorPane extends VBox {
 
     // ---- Internal ----
 
+    private double[][] getFilteredXY(int mxIdx, int myIdx) {
+        double[] allX = cellIndex.getMarkerValues(mxIdx);
+        double[] allY = cellIndex.getMarkerValues(myIdx);
+        if (roiMask == null) return new double[][]{allX, allY};
+        int count = 0;
+        for (boolean b : roiMask) if (b) count++;
+        double[] fx = new double[count], fy = new double[count];
+        int j = 0;
+        for (int i = 0; i < allX.length; i++) {
+            if (roiMask[i]) { fx[j] = allX[i]; fy[j] = allY[i]; j++; }
+        }
+        return new double[][]{fx, fy};
+    }
+
     private void updateHistogram() {
         if (currentNode == null || cellIndex == null || markerStats == null) return;
         String channel = currentNode.getChannel();
@@ -613,7 +690,18 @@ public class GateEditorPane extends VBox {
         int markerIdx = cellIndex.getMarkerIndex(channel);
         if (markerIdx < 0) return;
 
-        double[] rawValues = cellIndex.getMarkerValues(markerIdx);
+        double[] allValues = cellIndex.getMarkerValues(markerIdx);
+        // Filter by ROI mask if active
+        double[] rawValues;
+        if (roiMask != null) {
+            int count = 0;
+            for (int i = 0; i < allValues.length; i++) if (roiMask[i]) count++;
+            rawValues = new double[count];
+            int j = 0;
+            for (int i = 0; i < allValues.length; i++) if (roiMask[i]) rawValues[j++] = allValues[i];
+        } else {
+            rawValues = allValues;
+        }
         boolean useZ = currentNode.isThresholdIsZScore();
 
         double[] displayValues;

@@ -82,11 +82,7 @@ public class FlowPathPane extends BorderPane {
 
         // --- Left side: TreeView + Quality Filter ---
         treeView = new TreeView<>();
-        treeView.setCellFactory(tv -> {
-            FlowPathCell cell = new FlowPathCell();
-            cell.setOnGateDrop(this::handleGateDrop);
-            return cell;
-        });
+        treeView.setCellFactory(tv -> new FlowPathCell());
         treeView.setShowRoot(false);
         treeView.setRoot(new TreeItem<>("Root"));
         treeView.getSelectionModel().selectedItemProperty().addListener((obs, old, sel) -> onTreeSelectionChanged(sel));
@@ -269,6 +265,7 @@ public class FlowPathPane extends BorderPane {
         // Update UI
         editorPane.setChannelNames(markerNames);
         editorPane.setCellIndex(cellIndex);
+        editorPane.setRoiMask(cachedRoiMask);
         editorPane.setMarkerStats(markerStats);
 
         // Update quality filter ranges + check which QC metrics have data
@@ -435,7 +432,7 @@ public class FlowPathPane extends BorderPane {
      * Returns null if the user cancels.
      */
     private GateNode promptForNewGate() {
-        List<String> gateTypes = List.of("Threshold", "Quadrant", "Boolean", "Polygon", "Rectangle", "Ellipse");
+        List<String> gateTypes = List.of("Threshold", "Quadrant", "Region");
         ChoiceDialog<String> dialog = new ChoiceDialog<>("Threshold", gateTypes);
         dialog.setTitle("Add Gate");
         dialog.setHeaderText("Select gate type");
@@ -450,10 +447,7 @@ public class FlowPathPane extends BorderPane {
         return switch (result.get()) {
             case "Threshold" -> new GateNode(ch);
             case "Quadrant" -> new QuadrantGate(ch, ch2);
-            case "Boolean" -> new BooleanGate(BooleanGate.Op.AND, "Boolean");
-            case "Polygon" -> new PolygonGate(ch, ch2);
-            case "Rectangle" -> new RectangleGate(ch, ch2, 0, 1, 0, 1);
-            case "Ellipse" -> new EllipseGate(ch, ch2, 0.5, 0.5, 0.5, 0.5);
+            case "Region" -> new PolygonGate(ch, ch2);
             default -> new GateNode(ch);
         };
     }
@@ -589,6 +583,7 @@ public class FlowPathPane extends BorderPane {
         AnnotationItem selected = roiComboBox.getValue();
         gateTree.setRoiFilterId(selected != null ? selected.id() : null);
         recomputeRoiMask();
+        editorPane.setRoiMask(cachedRoiMask);
         // Recompute stats with new combined mask, then trigger preview
         previewService.recomputeStats();
     }
@@ -794,72 +789,6 @@ public class FlowPathPane extends BorderPane {
         for (TreeItem<?> child : item.getChildren()) {
             collapseAll(child);
         }
-    }
-
-    // --- Drag-and-Drop ---
-
-    private void handleGateDrop(TreeItem<Object> sourceItem, TreeItem<Object> targetItem) {
-        if (sourceItem == null || targetItem == null) return;
-
-        Object sourceValue = sourceItem.getValue();
-        Object targetValue = targetItem.getValue();
-
-        // Only gate nodes can be dragged
-        if (!(sourceValue instanceof GateNode draggedGate)) return;
-
-        // Prevent dropping a gate onto itself or its own descendants
-        if (sourceValue == targetValue) return;
-        if (isDescendant(sourceItem, targetItem)) return;
-
-        pushUndo();
-
-        // Remove dragged gate from its current location
-        if (!gateTree.getRoots().remove(draggedGate)) {
-            removeFromTree(gateTree.getRoots(), draggedGate);
-        }
-
-        // Determine drop target
-        if (targetValue instanceof FlowPathCell.BranchItem bi) {
-            // Drop onto a branch: add as child of that branch
-            bi.branch.getChildren().add(draggedGate);
-        } else if (targetValue instanceof GateNode targetGate) {
-            // Drop onto a gate: insert as sibling after the target
-            if (gateTree.getRoots().contains(targetGate)) {
-                int idx = gateTree.getRoots().indexOf(targetGate);
-                gateTree.getRoots().add(idx + 1, draggedGate);
-            } else {
-                insertAfterGate(gateTree.getRoots(), targetGate, draggedGate);
-            }
-        } else {
-            // Drop onto root: add as root
-            gateTree.addRoot(draggedGate);
-        }
-
-        rebuildTreeView();
-        requestPreviewUpdate();
-    }
-
-    private boolean insertAfterGate(List<GateNode> nodes, GateNode target, GateNode toInsert) {
-        for (GateNode node : nodes) {
-            for (Branch branch : node.getBranches()) {
-                int idx = branch.getChildren().indexOf(target);
-                if (idx >= 0) {
-                    branch.getChildren().add(idx + 1, toInsert);
-                    return true;
-                }
-                if (insertAfterGate(branch.getChildren(), target, toInsert)) return true;
-            }
-        }
-        return false;
-    }
-
-    private boolean isDescendant(TreeItem<Object> ancestor, TreeItem<Object> item) {
-        TreeItem<Object> current = item;
-        while (current != null) {
-            if (current == ancestor) return true;
-            current = current.getParent();
-        }
-        return false;
     }
 
     // --- Undo / Redo ---
