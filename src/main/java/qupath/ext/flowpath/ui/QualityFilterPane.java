@@ -116,16 +116,16 @@ public class QualityFilterPane extends TitledPane {
         setContent(grid);
 
         // Wire all 10 listeners
-        wireMinSlider(areaMinSlider, areaMinLabel, filter::setMinArea);
-        wireMinSlider(eccentMinSlider, eccentMinLabel, filter::setMinEccentricity);
-        wireMinSlider(solidMinSlider, solidMinLabel, filter::setMinSolidity);
-        wireMinSlider(totalIntMinSlider, totalIntMinLabel, filter::setMinTotalIntensity);
-        wireMinSlider(perimMinSlider, perimMinLabel, filter::setMinPerimeter);
-        wireMaxSlider(areaMaxSlider, areaMaxLabel, filter::setMaxArea);
-        wireMaxSlider(eccentMaxSlider, eccentMaxLabel, filter::setMaxEccentricity);
-        wireMaxSlider(solidMaxSlider, solidMaxLabel, filter::setMaxSolidity);
-        wireMaxSlider(totalIntMaxSlider, totalIntMaxLabel, filter::setMaxTotalIntensity);
-        wireMaxSlider(perimMaxSlider, perimMaxLabel, filter::setMaxPerimeter);
+        wireMinSlider(areaMinSlider, areaMinLabel, v -> this.filter.setMinArea(v));
+        wireMinSlider(eccentMinSlider, eccentMinLabel, v -> this.filter.setMinEccentricity(v));
+        wireMinSlider(solidMinSlider, solidMinLabel, v -> this.filter.setMinSolidity(v));
+        wireMinSlider(totalIntMinSlider, totalIntMinLabel, v -> this.filter.setMinTotalIntensity(v));
+        wireMinSlider(perimMinSlider, perimMinLabel, v -> this.filter.setMinPerimeter(v));
+        wireMaxSlider(areaMaxSlider, areaMaxLabel, v -> this.filter.setMaxArea(v));
+        wireMaxSlider(eccentMaxSlider, eccentMaxLabel, v -> this.filter.setMaxEccentricity(v));
+        wireMaxSlider(solidMaxSlider, solidMaxLabel, v -> this.filter.setMaxSolidity(v));
+        wireMaxSlider(totalIntMaxSlider, totalIntMaxLabel, v -> this.filter.setMaxTotalIntensity(v));
+        wireMaxSlider(perimMaxSlider, perimMaxLabel, v -> this.filter.setMaxPerimeter(v));
     }
 
     private void wireMinSlider(Slider slider, Label label, java.util.function.DoubleConsumer setter) {
@@ -173,6 +173,7 @@ public class QualityFilterPane extends TitledPane {
         syncSlider(perimMinSlider, perimMinLabel, newFilter.getMinPerimeter(), false);
         syncSlider(perimMaxSlider, perimMaxLabel, newFilter.getMaxPerimeter(), true);
         suppressEvents = false;
+        updateActiveIndicator();
     }
 
     private void syncSlider(Slider slider, Label label, double value, boolean isMax) {
@@ -200,7 +201,27 @@ public class QualityFilterPane extends TitledPane {
         totalIntMaxSlider.setMax(maxTotalIntensity * 1.1);
         perimMinSlider.setMax(maxPerimeter);
         perimMaxSlider.setMax(maxPerimeter * 1.1);
+
+        // Sync filter values to actual slider positions in case JavaFX clamped them
+        filter.setMinArea(areaMinSlider.getValue());
+        syncMaxFilterValue(areaMaxSlider, v -> this.filter.setMaxArea(v));
+        filter.setMinTotalIntensity(totalIntMinSlider.getValue());
+        syncMaxFilterValue(totalIntMaxSlider, v -> this.filter.setMaxTotalIntensity(v));
+        filter.setMinPerimeter(perimMinSlider.getValue());
+        syncMaxFilterValue(perimMaxSlider, v -> this.filter.setMaxPerimeter(v));
+
         suppressEvents = false;
+        updateActiveIndicator();
+    }
+
+    private void syncMaxFilterValue(Slider slider, java.util.function.DoubleConsumer setter) {
+        double v = slider.getValue();
+        double range = slider.getMax() - slider.getMin();
+        if (v >= slider.getMax() - range * 0.001) {
+            setter.accept(slider.getMax() <= 1.0 ? slider.getMax() : Double.MAX_VALUE);
+        } else {
+            setter.accept(v);
+        }
     }
 
     /**

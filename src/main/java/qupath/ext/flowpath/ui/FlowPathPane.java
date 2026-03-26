@@ -740,7 +740,6 @@ public class FlowPathPane extends BorderPane {
             gateTree = FlowPathSerializer.load(file);
             // Sync the quality filter pane to the new filter object
             qualityFilterPane.setFilter(gateTree.getQualityFilter());
-            qualityFilterPane.setOnFilterChanged(filter -> onQualityFilterChanged());
 
             // Restore ROI selection by UUID
             String roiId = gateTree.getRoiFilterId();
@@ -887,7 +886,6 @@ public class FlowPathPane extends BorderPane {
     private void afterUndoRedo() {
         lastUndoPushTime = 0;
         qualityFilterPane.setFilter(gateTree.getQualityFilter());
-        qualityFilterPane.setOnFilterChanged(filter -> onQualityFilterChanged());
         editorPane.setGateNode(null);
         rebuildTreeView();
         requestPreviewUpdate();

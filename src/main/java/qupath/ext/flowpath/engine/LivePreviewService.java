@@ -6,6 +6,7 @@ import javafx.util.Duration;
 import qupath.ext.flowpath.model.CellIndex;
 import qupath.ext.flowpath.model.GateTree;
 import qupath.ext.flowpath.model.MarkerStats;
+import qupath.ext.flowpath.model.QualityFilter;
 import qupath.ext.flowpath.model.ColorUtils;
 import qupath.lib.common.ColorTools;
 import qupath.lib.images.ImageData;
@@ -128,8 +129,10 @@ public class LivePreviewService {
             return;
         }
         final boolean[] roi = this.roiMask;
+        final CellIndex idx = this.cellIndex;
+        final QualityFilter qf = gateTree.getQualityFilter().deepCopy();
         executor.submit(() -> {
-            boolean[] qualityMask = GatingEngine.computeQualityMask(cellIndex, gateTree.getQualityFilter());
+            boolean[] qualityMask = GatingEngine.computeQualityMask(idx, qf);
             boolean[] mask = roi != null ? GatingEngine.combineMasks(qualityMask, roi) : qualityMask;
             MarkerStats recomputed = MarkerStats.compute(cellIndex, mask);
             this.markerStats = recomputed;
