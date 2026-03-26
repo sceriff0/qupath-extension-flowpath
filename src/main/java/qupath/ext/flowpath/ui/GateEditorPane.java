@@ -388,6 +388,7 @@ public class GateEditorPane extends VBox {
                 if (markerStats != null) {
                     applyClipAxisRange(scatter, gate.getChannelX(), gate.getChannelY(), gate);
                 }
+                applyBranchColorsToScatter(scatter, gate);
                 scatterRef[0] = scatter;
                 this.currentScatter = scatter;
                 gateSpecificArea.getChildren().addAll(createSectionHeader("Scatter Plot"), scatter);
@@ -469,6 +470,9 @@ public class GateEditorPane extends VBox {
                     applyClipAxisRange(scatter, chX, chY, node);
                 }
                 this.currentScatter = scatter;
+
+                // Apply branch colors to scatter plot
+                applyBranchColorsToScatter(scatter, node);
 
                 if (node instanceof PolygonGate pg && pg.getVertices().size() >= 3) {
                     scatter.setPolygonOverlay(pg.getVertices());
@@ -613,6 +617,16 @@ public class GateEditorPane extends VBox {
             colorPicker.valueProperty().addListener((obs, old, val) -> {
                 if (!suppressEvents) {
                     branch.setColor(ColorUtils.colorToInt(val));
+                    if (currentScatter != null && currentNode != null) {
+                        applyBranchColorsToScatter(currentScatter, currentNode);
+                    }
+                    if (currentNode != null && !(currentNode instanceof QuadrantGate)
+                            && !(currentNode instanceof PolygonGate)
+                            && !(currentNode instanceof RectangleGate)
+                            && !(currentNode instanceof EllipseGate)) {
+                        histogram.setPosColor(ColorUtils.intToColor(currentNode.getPositiveColor()));
+                        histogram.setNegColor(ColorUtils.intToColor(currentNode.getNegativeColor()));
+                    }
                     fireNodeChanged();
                 }
             });
@@ -849,6 +863,20 @@ public class GateEditorPane extends VBox {
         currentScatter.setData(filtered[0], filtered[1], chX, chY);
         if (markerStats != null) {
             applyClipAxisRange(currentScatter, chX, chY, currentNode);
+        }
+    }
+
+    private void applyBranchColorsToScatter(ScatterPlotCanvas scatter, GateNode node) {
+        List<Branch> branches = node.getBranches();
+        if (node instanceof QuadrantGate && branches.size() == 4) {
+            scatter.setQuadrantColors(
+                ColorUtils.intToColor(branches.get(0).getColor()).deriveColor(0, 1, 1, 0.6),
+                ColorUtils.intToColor(branches.get(1).getColor()).deriveColor(0, 1, 1, 0.6),
+                ColorUtils.intToColor(branches.get(2).getColor()).deriveColor(0, 1, 1, 0.6),
+                ColorUtils.intToColor(branches.get(3).getColor()).deriveColor(0, 1, 1, 0.6));
+        } else if (branches.size() >= 2) {
+            scatter.setInsideColor(ColorUtils.intToColor(branches.get(0).getColor()).deriveColor(0, 1, 1, 0.6));
+            scatter.setOutsideColor(ColorUtils.intToColor(branches.get(1).getColor()).deriveColor(0, 1, 1, 0.3));
         }
     }
 

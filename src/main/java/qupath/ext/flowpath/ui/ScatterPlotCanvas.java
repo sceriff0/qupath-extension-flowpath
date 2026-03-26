@@ -41,6 +41,8 @@ public class ScatterPlotCanvas extends Canvas {
 
     private Color insideColor = Color.rgb(0, 200, 0, 0.6);
     private Color outsideColor = Color.rgb(128, 128, 128, 0.3);
+    // Quadrant colors: [Q1(++), Q2(-+), Q3(+-), Q4(--)] — null means use inside/outside
+    private Color[] quadrantColors;
 
     // Drawing interaction
     public enum DrawingMode { NONE, POLYGON, RECTANGLE, ELLIPSE }
@@ -175,6 +177,12 @@ public class ScatterPlotCanvas extends Canvas {
 
     public void setInsideColor(Color c) { this.insideColor = c; repaint(); }
     public void setOutsideColor(Color c) { this.outsideColor = c; repaint(); }
+
+    /** Set 4 quadrant colors for crosshair overlay: Q1(++), Q2(-+), Q3(+-), Q4(--). */
+    public void setQuadrantColors(Color q1, Color q2, Color q3, Color q4) {
+        this.quadrantColors = new Color[]{q1, q2, q3, q4};
+        repaint();
+    }
 
     // ---- Effective axis bounds (override if set, otherwise auto-computed) ----
 
@@ -469,8 +477,7 @@ public class ScatterPlotCanvas extends Canvas {
             double px = PADDING_LEFT + valueToPixel(xValues[i], eMinX, eMaxX, plotW);
             double py = PADDING_TOP + plotH - valueToPixel(yValues[i], eMinY, eMaxY, plotH);
 
-            boolean inside = isInsideOverlay(xValues[i], yValues[i]);
-            gc.setFill(inside ? insideColor : outsideColor);
+            gc.setFill(getPointColor(xValues[i], yValues[i]));
             gc.fillOval(px - DOT_SIZE / 2, py - DOT_SIZE / 2, DOT_SIZE, DOT_SIZE);
         }
 
@@ -497,6 +504,19 @@ public class ScatterPlotCanvas extends Canvas {
         gc.rotate(-90);
         gc.fillText(labelY, 0, 0);
         gc.restore();
+    }
+
+    private Color getPointColor(double x, double y) {
+        // Quadrant mode: 4 colors based on crosshair thresholds
+        if (crosshairThresholds != null && quadrantColors != null) {
+            boolean xPos = x >= crosshairThresholds[0];
+            boolean yPos = y >= crosshairThresholds[1];
+            if (xPos && yPos) return quadrantColors[0];       // Q1 (++)
+            if (!xPos && yPos) return quadrantColors[1];       // Q2 (-+)
+            if (xPos) return quadrantColors[2];                // Q3 (+-)
+            return quadrantColors[3];                          // Q4 (--)
+        }
+        return isInsideOverlay(x, y) ? insideColor : outsideColor;
     }
 
     private boolean isInsideOverlay(double x, double y) {

@@ -495,8 +495,9 @@ public class FlowPathPane extends BorderPane {
             replaceInTree(gateTree.getRoots(), oldNode, newNode);
         }
         currentNode = newNode;
-        // Don't call editorPane.setGateNode() — the editor already updated its
-        // currentNode in the draw callback. Rebuilding would destroy the scatter plot.
+        // Suppress selection events during rebuild to prevent the editor from being
+        // cleared — the editor already updated its currentNode in the draw callback.
+        suppressTreeSelection = true;
         rebuildTreeView();
         selectNodeInTree(newNode);
         requestPreviewUpdate();
