@@ -664,6 +664,7 @@ public class FlowPathPane extends BorderPane {
     private void onGateNodeChanged() {
         pushUndoCoalesced();
         previewService.setUseZScore(editorPane.isUseZScore());
+        rebuildTreeView();
         requestPreviewUpdate();
     }
 

@@ -17,8 +17,11 @@ import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import qupath.ext.flowpath.model.Branch;
 import qupath.ext.flowpath.model.ColorUtils;
+import qupath.ext.flowpath.model.EllipseGate;
 import qupath.ext.flowpath.model.GateNode;
+import qupath.ext.flowpath.model.PolygonGate;
 import qupath.ext.flowpath.model.QuadrantGate;
+import qupath.ext.flowpath.model.RectangleGate;
 
 import java.util.function.Consumer;
 
@@ -141,6 +144,36 @@ public class FlowPathCell extends TreeCell<Object> {
             threshLabel.setTextFill(Color.web("#a0b0c0"));
 
             bar.getChildren().addAll(enabledBox, channelLabel, threshLabel);
+        } else if (node instanceof PolygonGate pg) {
+            Label channelLabel = new Label(pg.getChannelX() + " / " + pg.getChannelY());
+            channelLabel.setFont(Font.font(null, FontWeight.BOLD, 13));
+            channelLabel.setTextFill(Color.WHITE);
+
+            Label typeLabel = new Label("polygon");
+            typeLabel.setFont(Font.font(null, FontWeight.NORMAL, 10));
+            typeLabel.setTextFill(Color.web("#a0b0c0"));
+
+            bar.getChildren().addAll(enabledBox, channelLabel, typeLabel);
+        } else if (node instanceof RectangleGate rg) {
+            Label channelLabel = new Label(rg.getChannelX() + " / " + rg.getChannelY());
+            channelLabel.setFont(Font.font(null, FontWeight.BOLD, 13));
+            channelLabel.setTextFill(Color.WHITE);
+
+            Label typeLabel = new Label("rectangle");
+            typeLabel.setFont(Font.font(null, FontWeight.NORMAL, 10));
+            typeLabel.setTextFill(Color.web("#a0b0c0"));
+
+            bar.getChildren().addAll(enabledBox, channelLabel, typeLabel);
+        } else if (node instanceof EllipseGate eg) {
+            Label channelLabel = new Label(eg.getChannelX() + " / " + eg.getChannelY());
+            channelLabel.setFont(Font.font(null, FontWeight.BOLD, 13));
+            channelLabel.setTextFill(Color.WHITE);
+
+            Label typeLabel = new Label("ellipse");
+            typeLabel.setFont(Font.font(null, FontWeight.NORMAL, 10));
+            typeLabel.setTextFill(Color.web("#a0b0c0"));
+
+            bar.getChildren().addAll(enabledBox, channelLabel, typeLabel);
         } else {
             Label channelLabel = new Label(node.getChannel());
             channelLabel.setFont(Font.font(null, FontWeight.BOLD, 13));

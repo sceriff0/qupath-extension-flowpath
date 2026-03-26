@@ -495,6 +495,7 @@ public class GateEditorPane extends VBox {
                 String chYVal = chYCombo.getValue();
                 scatter.setOnPolygonDrawn(vertices -> {
                     GateNode target = currentNode;
+                    boolean replaced = false;
                     if (!(target instanceof PolygonGate)) {
                         PolygonGate pg = new PolygonGate(chXCombo.getValue(), chYCombo.getValue());
                         pg.setEnabled(target.isEnabled());
@@ -502,13 +503,19 @@ public class GateEditorPane extends VBox {
                         if (onReplaceGate != null) onReplaceGate.accept(target, pg);
                         currentNode = pg;
                         target = pg;
+                        replaced = true;
                     }
                     ((PolygonGate) target).setVertices(new ArrayList<>(vertices));
                     scatter.setPolygonOverlay(((PolygonGate) target).getVertices());
+                    if (replaced) {
+                        applyBranchColorsToScatter(scatter, currentNode);
+                        buildBranchNamesEditor(currentNode);
+                    }
                     fireNodeChanged();
                 });
                 scatter.setOnRectangleDrawn(bounds -> {
                     GateNode target = currentNode;
+                    boolean replaced = false;
                     if (!(target instanceof RectangleGate)) {
                         RectangleGate rg = new RectangleGate(chXCombo.getValue(), chYCombo.getValue(),
                             bounds[0], bounds[1], bounds[2], bounds[3]);
@@ -517,16 +524,22 @@ public class GateEditorPane extends VBox {
                         if (onReplaceGate != null) onReplaceGate.accept(target, rg);
                         currentNode = rg;
                         target = rg;
+                        replaced = true;
                     } else {
                         RectangleGate rg = (RectangleGate) target;
                         rg.setMinX(bounds[0]); rg.setMaxX(bounds[1]);
                         rg.setMinY(bounds[2]); rg.setMaxY(bounds[3]);
                     }
                     scatter.setRectangleOverlay(bounds[0], bounds[1], bounds[2], bounds[3]);
+                    if (replaced) {
+                        applyBranchColorsToScatter(scatter, currentNode);
+                        buildBranchNamesEditor(currentNode);
+                    }
                     fireNodeChanged();
                 });
                 scatter.setOnEllipseDrawn(params -> {
                     GateNode target = currentNode;
+                    boolean replaced = false;
                     if (!(target instanceof EllipseGate)) {
                         EllipseGate eg = new EllipseGate(chXCombo.getValue(), chYCombo.getValue(),
                             params[0], params[1], params[2], params[3]);
@@ -535,12 +548,17 @@ public class GateEditorPane extends VBox {
                         if (onReplaceGate != null) onReplaceGate.accept(target, eg);
                         currentNode = eg;
                         target = eg;
+                        replaced = true;
                     } else {
                         EllipseGate eg = (EllipseGate) target;
                         eg.setCenterX(params[0]); eg.setCenterY(params[1]);
                         eg.setRadiusX(params[2]); eg.setRadiusY(params[3]);
                     }
                     scatter.setEllipseOverlay(params[0], params[1], params[2], params[3]);
+                    if (replaced) {
+                        applyBranchColorsToScatter(scatter, currentNode);
+                        buildBranchNamesEditor(currentNode);
+                    }
                     fireNodeChanged();
                 });
 
@@ -607,7 +625,10 @@ public class GateEditorPane extends VBox {
             nameField.setPrefWidth(120);
             nameField.textProperty().addListener((obs, old, val) -> {
                 if (!suppressEvents && val != null && !val.isBlank()) {
-                    branch.setName(val);
+                    // Use currentNode's branches to avoid stale references after gate replacement
+                    if (currentNode != null && idx < currentNode.getBranches().size()) {
+                        currentNode.getBranches().get(idx).setName(val);
+                    }
                     fireNodeChanged();
                 }
             });
@@ -616,7 +637,10 @@ public class GateEditorPane extends VBox {
             colorPicker.setPrefWidth(80);
             colorPicker.valueProperty().addListener((obs, old, val) -> {
                 if (!suppressEvents) {
-                    branch.setColor(ColorUtils.colorToInt(val));
+                    // Use currentNode's branches to avoid stale references after gate replacement
+                    if (currentNode != null && idx < currentNode.getBranches().size()) {
+                        currentNode.getBranches().get(idx).setColor(ColorUtils.colorToInt(val));
+                    }
                     if (currentScatter != null && currentNode != null) {
                         applyBranchColorsToScatter(currentScatter, currentNode);
                     }
@@ -727,9 +751,13 @@ public class GateEditorPane extends VBox {
         to.setClipPercentileLow(from.getClipPercentileLow());
         to.setClipPercentileHigh(from.getClipPercentileHigh());
         to.setExcludeOutliers(from.isExcludeOutliers());
-        // Copy branch children from old gate to new gate
+        // Copy branch children, colors, and names from old gate to new gate
         for (int i = 0; i < Math.min(from.getBranches().size(), to.getBranches().size()); i++) {
-            to.getBranches().get(i).setChildren(new ArrayList<>(from.getBranches().get(i).getChildren()));
+            Branch srcBranch = from.getBranches().get(i);
+            Branch dstBranch = to.getBranches().get(i);
+            dstBranch.setChildren(new ArrayList<>(srcBranch.getChildren()));
+            dstBranch.setColor(srcBranch.getColor());
+            dstBranch.setName(srcBranch.getName());
         }
     }
 
