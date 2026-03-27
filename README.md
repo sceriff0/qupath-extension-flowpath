@@ -28,7 +28,7 @@ Designed to work with the [mirage](https://github.com/sceriff0/mirage) pipeline 
 ### From QuPath Extension Manager
 
 1. Open QuPath → `Extensions` → `Manage extensions` → `Manage extension catalogs` → `Add`
-2. Paste: `https://github.com/sceriff0/qupath-extension-flowpath`
+2. Paste: `https://raw.githubusercontent.com/sceriff0/flowpath-catalog/main/catalog.json`
 3. Go back to `Manage extensions` → find **FlowPath** → click `+` to install
 4. Restart QuPath
 
