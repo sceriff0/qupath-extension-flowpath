@@ -52,6 +52,8 @@ jobs:
         if: env.CATALOG_PAT != ''
         run: |
           JAR_NAME=$(find build/libs -name '*.jar' ! -name '*-all.jar' -printf '%f' -quit)
+          # GitHub normalizes spaces to dots in release asset filenames
+          JAR_NAME="${JAR_NAME// /.}"
 
           git clone https://x-access-token:${CATALOG_PAT}@github.com/sceriff0/flowpath-catalog.git /tmp/catalog
           cd /tmp/catalog
