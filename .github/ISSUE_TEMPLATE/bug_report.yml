@@ -1,0 +1,37 @@
+name: Bug Report
+description: Report a bug in FlowPath - GatingTree
+labels: ["bug"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What happened? What did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: How can we reproduce this?
+    validations:
+      required: true
+  - type: input
+    id: qupath-version
+    attributes:
+      label: QuPath version
+      placeholder: "0.7.0"
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: "macOS 14, Windows 11, Ubuntu 24.04"
+    validations:
+      required: true
+  - type: textarea
+    id: data
+    attributes:
+      label: Dataset info
+      description: Approximate cell count, number of markers, image type
