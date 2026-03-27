@@ -8,6 +8,8 @@ Interactive tree-based cell phenotyping for [QuPath](https://qupath.github.io/).
 
 Designed to work with the [mirage](https://github.com/sceriff0/mirage) pipeline for end-to-end multiplexed image analysis — from raw images to cell phenotypes.
 
+See also [FlowPath - qUMAP](https://github.com/sceriff0/qupath-extension-qumap) for UMAP dimensionality reduction visualization. Install both from the [FlowPath catalog](https://github.com/sceriff0/flowpath-catalog).
+
 <!-- Add screenshots here -->
 
 ## Features
@@ -71,6 +73,11 @@ cell_id,phenotype,CD45,CD3,CD8,PANCK
 ```
 
 Excluded cells (QC-filtered or outlier-excluded) are omitted when "Exclude from CSV" is enabled.
+
+## Acknowledgments
+
+- **[QuPath](https://qupath.github.io/)** — Open-source bioimage analysis platform
+  > Bankhead, P. et al. (2017). QuPath: Open source software for digital pathology image analysis. *Scientific Reports*, 7, 16878. https://doi.org/10.1038/s41598-017-17204-5
 
 ## Citation
 
